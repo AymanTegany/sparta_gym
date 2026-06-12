@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+import '../../../../core/common/widgets/sidebar_layout.dart';
 
 import '../../../../core/theme/color_palette.dart';
 import '../../domain/entities/membership_entity.dart';
@@ -105,36 +106,29 @@ class _MembershipsPageState extends State<MembershipsPage> {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text(
-            'باقات واشتراكات الجيم',
-            style: TextStyle(fontWeight: FontWeight.bold),
+    return SidebarLayout(
+      activePage: 'memberships',
+      title: 'باقات واشتراكات الجيم',
+      actions: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+          child: ElevatedButton.icon(
+            onPressed: () => _showAddMembershipDialog(context),
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('إضافة باقة جديدة'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primary,
+              foregroundColor: Colors.white,
+            ),
           ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-              child: ElevatedButton.icon(
-                onPressed: () => _showAddMembershipDialog(context),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('إضافة باقة جديدة'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primary,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              tooltip: 'تحديث البيانات',
-              onPressed: () => context.read<MembershipsCubit>().loadMemberships(),
-            ),
-            const SizedBox(width: 8),
-          ],
         ),
-        body: BlocConsumer<MembershipsCubit, MembershipsState>(
+        IconButton(
+          icon: const Icon(Icons.refresh_rounded),
+          tooltip: 'تحديث البيانات',
+          onPressed: () => context.read<MembershipsCubit>().loadMemberships(),
+        ),
+      ],
+      body: BlocConsumer<MembershipsCubit, MembershipsState>(
           listener: (context, state) {
             if (state is MembershipActionSuccess) {
               ScaffoldMessenger.of(context)
@@ -286,7 +280,6 @@ class _MembershipsPageState extends State<MembershipsPage> {
             return const Center(child: Text('تحميل البيانات...'));
           },
         ),
-      ),
-    );
+      );
   }
 }

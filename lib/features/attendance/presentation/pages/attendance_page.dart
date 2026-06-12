@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../../../core/theme/color_palette.dart';
+import '../../../../core/common/widgets/sidebar_layout.dart';
 import '../../domain/entities/attendance_entity.dart';
 import '../cubit/attendance_cubit.dart';
 import '../cubit/attendance_state.dart';
@@ -57,31 +58,20 @@ class _AttendancePageState extends State<AttendancePage> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: isDark ? ColorPalette.backgroundDark : ColorPalette.backgroundLight,
-        appBar: AppBar(
-          title: const Text(
-            'حضور وانصراف العملاء',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () {
-                context.read<AttendanceCubit>().loadDailyData();
-                _scanFocusNode.requestFocus();
-              },
-              tooltip: 'تحديث البيانات',
-            ),
-          ],
+    return SidebarLayout(
+      activePage: 'attendance',
+      title: 'حضور وانصراف العملاء',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          onPressed: () {
+            context.read<AttendanceCubit>().loadDailyData();
+            _scanFocusNode.requestFocus();
+          },
+          tooltip: 'تحديث البيانات',
         ),
-        body: BlocConsumer<AttendanceCubit, AttendanceState>(
+      ],
+      body: BlocConsumer<AttendanceCubit, AttendanceState>(
           listener: (context, state) {
             if (state is AttendanceActionSuccess) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -219,8 +209,7 @@ class _AttendancePageState extends State<AttendancePage> {
             );
           },
         ),
-      ),
-    );
+      );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

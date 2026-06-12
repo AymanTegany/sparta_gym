@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../core/theme/color_palette.dart';
+import '../../../../core/common/widgets/sidebar_layout.dart';
 import '../cubit/settings_cubit.dart';
 import '../cubit/settings_state.dart';
 
@@ -72,23 +73,11 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: isDark ? ColorPalette.backgroundDark : ColorPalette.backgroundLight,
-        appBar: AppBar(
-          title: const Text(
-            'إعدادات النظام',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ),
-        body: BlocConsumer<SettingsCubit, SettingsState>(
+    return SidebarLayout(
+      activePage: 'settings',
+      title: 'إعدادات النظام',
+      body: BlocConsumer<SettingsCubit, SettingsState>(
           listener: (context, state) {
             if (state is SettingsLoaded) {
               if (state.message != null) {
@@ -349,9 +338,8 @@ class _SettingsPageState extends State<SettingsPage> {
             return const SizedBox();
           },
         ),
-      ),
-    );
-  }
+      );
+    }
 
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(

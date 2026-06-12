@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../../../core/theme/color_palette.dart';
+import '../../../../core/common/widgets/sidebar_layout.dart';
 import '../../domain/entities/payment_entity.dart';
 import '../cubit/payments_cubit.dart';
 import '../cubit/payments_state.dart';
@@ -63,28 +64,17 @@ class _PaymentsPageState extends State<PaymentsPage> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: isDark ? ColorPalette.backgroundDark : ColorPalette.backgroundLight,
-        appBar: AppBar(
-          title: const Text(
-            'إدارة المدفوعات والمالية',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () => context.read<PaymentsCubit>().loadPaymentsAndStats(),
-              tooltip: 'تحديث البيانات',
-            ),
-          ],
+    return SidebarLayout(
+      activePage: 'payments',
+      title: 'إدارة المدفوعات والمالية',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          onPressed: () => context.read<PaymentsCubit>().loadPaymentsAndStats(),
+          tooltip: 'تحديث البيانات',
         ),
-        body: BlocConsumer<PaymentsCubit, PaymentsState>(
+      ],
+      body: BlocConsumer<PaymentsCubit, PaymentsState>(
           listener: (context, state) {
             if (state is PaymentsActionSuccess) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -201,9 +191,8 @@ class _PaymentsPageState extends State<PaymentsPage> {
             );
           },
         ),
-      ),
-    );
-  }
+      );
+    }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // شريط كروت الإحصائيات

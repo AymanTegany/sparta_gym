@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
-import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../members/presentation/pages/members_page.dart';
 import '../../../attendance/presentation/pages/attendance_page.dart';
-import '../../../settings/presentation/pages/settings_page.dart';
 import '../../../payments/presentation/pages/payments_page.dart';
 import '../../../../core/theme/color_palette.dart';
 
 // Dashboard / Home Feature Imports
 import '../cubit/dashboard_cubit.dart';
 import '../cubit/dashboard_state.dart';
+import '../../../../core/common/widgets/sidebar_layout.dart';
 
 // Dialogs for Quick Actions
 import '../../../members/presentation/widgets/add_member_dialog.dart';
@@ -736,81 +735,17 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
-
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Row(
-            children: [
-              Icon(Icons.fitness_center_rounded, color: primary, size: 28),
-              const SizedBox(width: 10),
-              const Text(
-                'نظام Sparta Gym',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          actions: [
-            // زر تحديث البيانات اليدوي
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded),
-              onPressed: () => context.read<DashboardCubit>().loadDashboard(),
-              tooltip: 'تحديث البيانات',
-            ),
-            // زر تبديل الثيم
-            IconButton(
-              icon: Icon(widget.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded),
-              onPressed: widget.onThemeToggle,
-              tooltip: widget.isDarkMode ? 'تفعيل الوضع النهاري' : 'تفعيل الوضع الليلي',
-            ),
-            // زر الإعدادات
-            IconButton(
-              icon: const Icon(Icons.settings_rounded),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SettingsPage()),
-                ).then((_) => context.read<DashboardCubit>().loadDashboard());
-              },
-              tooltip: 'إعدادات النظام',
-            ),
-            // زر تسجيل الخروج
-            IconButton(
-              icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-              tooltip: 'تسجيل الخروج',
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('تسجيل الخروج'),
-                    content: const Text('هل أنت متأكد من رغبتك في تسجيل الخروج من النظام؟'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('إلغاء'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          context.read<AuthCubit>().logout();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('خروج'),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            const SizedBox(width: 8),
-          ],
+    return SidebarLayout(
+      activePage: 'home',
+      title: 'لوحة التحكم الرئيسية',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh_rounded),
+          onPressed: () => context.read<DashboardCubit>().loadDashboard(),
+          tooltip: 'تحديث البيانات',
         ),
-        body: BlocBuilder<DashboardCubit, DashboardState>(
+      ],
+      body: BlocBuilder<DashboardCubit, DashboardState>(
           builder: (context, state) {
             if (state is DashboardLoading) {
               return const Center(child: CircularProgressIndicator());
@@ -950,7 +885,6 @@ class _HomePageState extends State<HomePage> {
             return const Center(child: Text('جاري تحميل البيانات...'));
           },
         ),
-      ),
-    );
+      );
   }
 }

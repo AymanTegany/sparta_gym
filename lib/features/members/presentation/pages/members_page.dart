@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/color_palette.dart';
+import '../../../../core/common/widgets/sidebar_layout.dart';
 import '../../domain/entities/member_entity.dart';
 import '../cubit/members_cubit.dart';
 import '../cubit/members_state.dart';
@@ -201,37 +202,31 @@ class _MembersPageState extends State<MembersPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'إدارة العملاء والمشتركين',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: false,
-        actions: [
-          // زر إضافة مشترك جديد
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-            child: ElevatedButton.icon(
-              onPressed: () => _showAddMemberDialog(context),
-              icon: const Icon(Icons.person_add_alt_1_rounded),
-              label: const Text('إضافة مشترك جديد'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: Colors.white,
-              ),
+    return SidebarLayout(
+      activePage: 'members',
+      title: 'إدارة العملاء والمشتركين',
+      actions: [
+        // زر إضافة مشترك جديد
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+          child: ElevatedButton.icon(
+            onPressed: () => _showAddMemberDialog(context),
+            icon: const Icon(Icons.person_add_alt_1_rounded),
+            label: const Text('إضافة مشترك جديد'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: Colors.white,
             ),
           ),
-          // زر تحديث البيانات
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'تحديث البيانات',
-            onPressed: () => context.read<MembersCubit>().loadMembers(),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+        ),
+        // زر تحديث البيانات
+        IconButton(
+          icon: const Icon(Icons.refresh_rounded),
+          tooltip: 'تحديث البيانات',
+          onPressed: () => context.read<MembersCubit>().loadMembers(),
+        ),
+      ],
       body: BlocConsumer<MembersCubit, MembersState>(
         listener: (context, state) {
           // عرض رسائل النجاح
