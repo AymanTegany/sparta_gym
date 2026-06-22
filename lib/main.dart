@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -15,6 +16,11 @@ import 'features/settings/presentation/cubit/settings_cubit.dart';
 import 'features/settings/presentation/cubit/settings_state.dart';
 import 'features/payments/presentation/cubit/payments_cubit.dart';
 import 'features/home/presentation/cubit/dashboard_cubit.dart';
+import 'features/trainers/presentation/cubit/trainers_cubit.dart';
+import 'features/expenses/presentation/cubit/expenses_cubit.dart';
+import 'features/inventory/presentation/cubit/inventory_cubit.dart';
+import 'features/pos/presentation/cubit/pos_cubit.dart';
+import 'features/diets/presentation/cubit/diet_plans_cubit.dart';
 import 'init_dependencies.dart';
 
 void main() async {
@@ -53,8 +59,23 @@ void main() async {
         BlocProvider<PaymentsCubit>(
           create: (_) => serviceLocator<PaymentsCubit>(),
         ),
+        BlocProvider<DietPlansCubit>(
+          create: (_) => serviceLocator<DietPlansCubit>(),
+        ),
         BlocProvider<DashboardCubit>(
           create: (_) => serviceLocator<DashboardCubit>()..loadDashboard(),
+        ),
+        BlocProvider<TrainersCubit>(
+          create: (_) => serviceLocator<TrainersCubit>(),
+        ),
+        BlocProvider<ExpensesCubit>(
+          create: (_) => serviceLocator<ExpensesCubit>(),
+        ),
+        BlocProvider<InventoryCubit>(
+          create: (_) => serviceLocator<InventoryCubit>(),
+        ),
+        BlocProvider<PosCubit>(
+          create: (_) => serviceLocator<PosCubit>(),
         ),
       ],
       child: const SpartaGymApp(),
@@ -82,6 +103,14 @@ class SpartaGymApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: themeMode,
+          scrollBehavior: const MaterialScrollBehavior().copyWith(
+            dragDevices: {
+              PointerDeviceKind.mouse,
+              PointerDeviceKind.touch,
+              PointerDeviceKind.trackpad,
+              PointerDeviceKind.stylus,
+            },
+          ),
           home: BlocBuilder<AuthCubit, AuthState>(
             builder: (context, state) {
               if (state is AuthInitial || state is AuthLoading) {

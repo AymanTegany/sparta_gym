@@ -163,15 +163,19 @@ class _AddMembershipDialogState extends State<AddMembershipDialog> {
                   ),
                   const SizedBox(height: 16),
 
-                  // باقة محدودة بعدد الزيارات؟
+                  // باقة بالحصة / محدودة الزيارات
                   CheckboxListTile(
-                    title: const Text('باقة محدودة بعدد الزيارات (مثلاً: 12 حصة/زيارة)'),
+                    title: const Text('باقة بالحصة (تحديد عدد الزيارات / التمارين)'),
+                    subtitle: const Text('قم بتفعيل هذا الخيار لإنشاء باقة تحاسب بالحصة (مثال: 1 لتمرينة واحدة، أو 10 لـ 10 حصص).'),
                     value: _isLimitedVisits,
                     activeColor: ColorPalette.primaryColor,
                     contentPadding: EdgeInsets.zero,
                     onChanged: (val) {
                       setState(() {
                         _isLimitedVisits = val ?? false;
+                        if (_isLimitedVisits && _visitsLimitCtrl.text.isEmpty) {
+                          _visitsLimitCtrl.text = '1'; // Default to 1 session
+                        }
                       });
                     },
                   ),
@@ -179,7 +183,7 @@ class _AddMembershipDialogState extends State<AddMembershipDialog> {
                     const SizedBox(height: 8),
                     _buildTextField(
                       controller: _visitsLimitCtrl,
-                      label: 'أقصى عدد للزيارات *',
+                      label: 'عدد الزيارات / الحصص المسموح بها *',
                       icon: Icons.filter_9_plus_outlined,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],

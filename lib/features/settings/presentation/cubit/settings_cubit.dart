@@ -23,6 +23,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     required String phone,
     required String address,
     required String register,
+    String? logoPath,
   }) async {
     if (state is! SettingsLoaded) return;
     final currentSettings = (state as SettingsLoaded).settings;
@@ -34,6 +35,7 @@ class SettingsCubit extends Cubit<SettingsState> {
       gymPhone: phone,
       gymAddress: address,
       commercialRegister: register,
+      logoPath: logoPath ?? currentSettings.logoPath,
     );
 
     final result = await repository.saveSettings(updated);

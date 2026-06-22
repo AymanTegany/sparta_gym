@@ -66,6 +66,47 @@ import 'features/home/data/repositories/home_repository_impl.dart';
 import 'features/home/domain/repositories/home_repository.dart';
 import 'features/home/presentation/cubit/dashboard_cubit.dart';
 
+// Trainers Feature Imports
+import 'features/trainers/data/datasources/trainers_local_data_source.dart';
+import 'features/trainers/data/repositories/trainers_repository_impl.dart';
+import 'features/trainers/domain/repositories/trainers_repository.dart';
+import 'features/trainers/domain/usecases/add_trainer.dart';
+import 'features/trainers/domain/usecases/delete_trainer.dart';
+import 'features/trainers/domain/usecases/get_all_trainers.dart';
+import 'features/trainers/domain/usecases/update_trainer.dart';
+import 'features/trainers/presentation/cubit/trainers_cubit.dart';
+
+// New Features Imports
+import 'features/expenses/data/datasources/expenses_local_data_source.dart';
+import 'features/expenses/data/repositories/expenses_repository_impl.dart';
+import 'features/expenses/domain/repositories/expenses_repository.dart';
+import 'features/expenses/domain/usecases/add_expense.dart';
+import 'features/expenses/domain/usecases/delete_expense.dart';
+import 'features/expenses/domain/usecases/get_all_expenses.dart';
+import 'features/expenses/presentation/cubit/expenses_cubit.dart';
+import 'features/inventory/data/datasources/inventory_local_data_source.dart';
+import 'features/inventory/data/repositories/inventory_repository_impl.dart';
+import 'features/inventory/domain/repositories/inventory_repository.dart';
+import 'features/inventory/domain/usecases/add_inventory_item.dart';
+import 'features/inventory/domain/usecases/delete_inventory_item.dart';
+import 'features/inventory/domain/usecases/get_all_inventory_items.dart';
+import 'features/inventory/presentation/cubit/inventory_cubit.dart';
+import 'features/pos/data/datasources/pos_local_data_source.dart';
+import 'features/pos/data/repositories/pos_repository_impl.dart';
+import 'features/pos/domain/repositories/pos_repository.dart';
+import 'features/pos/domain/usecases/process_sale.dart';
+import 'features/pos/presentation/cubit/pos_cubit.dart';
+
+// Diets Feature Imports
+import 'features/diets/data/datasources/diet_plan_local_data_source.dart';
+import 'features/diets/data/repositories/diet_plan_repository_impl.dart';
+import 'features/diets/domain/repositories/diet_plan_repository.dart';
+import 'features/diets/domain/usecases/add_diet_plan.dart';
+import 'features/diets/domain/usecases/delete_diet_plan.dart';
+import 'features/diets/domain/usecases/get_diet_plans.dart';
+import 'features/diets/domain/usecases/update_diet_plan.dart';
+import 'features/diets/presentation/cubit/diet_plans_cubit.dart';
+
 final serviceLocator = GetIt.instance;
 
 /// تهيئة وحقن جميع التبعيات الخاصة بالتطبيق (Dependency Injection).
@@ -88,7 +129,7 @@ Future<void> initDependencies() async {
     () => ConnectionCheckerImpl(serviceLocator()),
   );
 
-  // 3. Features
+  // 4. تهيئة ميزات التطبيق
   _initAuth();
   _initMembers();
   _initMemberships();
@@ -96,6 +137,11 @@ Future<void> initDependencies() async {
   _initSettings();
   _initPayments();
   _initHome();
+  _initTrainers();
+  _initExpenses();
+  _initInventory();
+  _initPos();
+  _initDiets();
 }
 
 /// تهيئة ميزة المصادقة والترخيص
@@ -286,5 +332,138 @@ void _initHome() {
   // 3. Cubit
   serviceLocator.registerFactory<DashboardCubit>(
     () => DashboardCubit(repository: serviceLocator()),
+  );
+}
+
+/// تهيئة ميزة إدارة المدربين
+void _initTrainers() {
+  // 1. Datasource
+  serviceLocator.registerLazySingleton<TrainersLocalDataSource>(
+    () => TrainersLocalDataSourceImpl(databaseHelper: serviceLocator()),
+  );
+
+  // 2. Repository
+  serviceLocator.registerLazySingleton<TrainersRepository>(
+    () => TrainersRepositoryImpl(localDataSource: serviceLocator()),
+  );
+
+  // 3. Usecases
+  serviceLocator.registerLazySingleton(() => GetAllTrainers(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => AddTrainer(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => UpdateTrainer(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => DeleteTrainer(serviceLocator()));
+
+  // 4. Cubit
+  serviceLocator.registerFactory<TrainersCubit>(
+    () => TrainersCubit(
+      getAllTrainers: serviceLocator(),
+      addTrainer: serviceLocator(),
+      updateTrainer: serviceLocator(),
+      deleteTrainer: serviceLocator(),
+    ),
+  );
+}
+
+void _initExpenses() {
+  // 1. Datasource
+  serviceLocator.registerLazySingleton<ExpensesLocalDataSource>(
+    () => ExpensesLocalDataSourceImpl(databaseHelper: serviceLocator()),
+  );
+
+  // 2. Repository
+  serviceLocator.registerLazySingleton<ExpensesRepository>(
+    () => ExpensesRepositoryImpl(localDataSource: serviceLocator()),
+  );
+
+  // 3. Usecases
+  serviceLocator.registerLazySingleton(() => GetAllExpensesUseCase(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => AddExpenseUseCase(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => DeleteExpenseUseCase(serviceLocator()));
+
+  // 4. Cubit
+  serviceLocator.registerFactory<ExpensesCubit>(
+    () => ExpensesCubit(
+      getAllExpenses: serviceLocator(),
+      addExpenseUseCase: serviceLocator(),
+      deleteExpenseUseCase: serviceLocator(),
+    ),
+  );
+}
+
+void _initInventory() {
+  // 1. Datasource
+  serviceLocator.registerLazySingleton<InventoryLocalDataSource>(
+    () => InventoryLocalDataSourceImpl(databaseHelper: serviceLocator()),
+  );
+
+  // 2. Repository
+  serviceLocator.registerLazySingleton<InventoryRepository>(
+    () => InventoryRepositoryImpl(localDataSource: serviceLocator()),
+  );
+
+  // 3. Usecases
+  serviceLocator.registerLazySingleton(() => GetAllInventoryItemsUseCase(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => AddInventoryItemUseCase(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => DeleteInventoryItemUseCase(serviceLocator()));
+
+  // 4. Cubit
+  serviceLocator.registerFactory<InventoryCubit>(
+    () => InventoryCubit(
+      getAllInventoryItems: serviceLocator(),
+      addInventoryItemUseCase: serviceLocator(),
+      deleteInventoryItemUseCase: serviceLocator(),
+    ),
+  );
+}
+
+void _initPos() {
+  // 1. Datasource
+  serviceLocator.registerLazySingleton<PosLocalDataSource>(
+    () => PosLocalDataSourceImpl(databaseHelper: serviceLocator()),
+  );
+
+  // 2. Repository
+  serviceLocator.registerLazySingleton<PosRepository>(
+    () => PosRepositoryImpl(localDataSource: serviceLocator()),
+  );
+
+  // 3. Usecases
+  serviceLocator.registerLazySingleton(() => ProcessSaleUseCase(serviceLocator()));
+
+  // 4. Cubit
+  serviceLocator.registerFactory<PosCubit>(
+    () => PosCubit(
+      processSaleUseCase: serviceLocator(),
+      getAllInventoryItems: serviceLocator(), // We reuse this from Inventory
+    ),
+  );
+}
+
+/// تهيئة ميزة الأنظمة الغذائية
+void _initDiets() {
+  // 1. Datasource
+  serviceLocator.registerLazySingleton<DietPlanLocalDataSource>(
+    () => DietPlanLocalDataSourceImpl(databaseHelper: serviceLocator()),
+  );
+
+  // 2. Repository
+  serviceLocator.registerLazySingleton<DietPlanRepository>(
+    () => DietPlanRepositoryImpl(localDataSource: serviceLocator()),
+  );
+
+  // 3. Usecases
+  serviceLocator.registerLazySingleton(() => GetDietPlans(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => AddDietPlan(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => UpdateDietPlan(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => DeleteDietPlan(serviceLocator()));
+
+  // 4. Cubit
+  serviceLocator.registerFactory<DietPlansCubit>(
+    () => DietPlansCubit(
+      getDietPlans: serviceLocator(),
+      addDietPlan: serviceLocator(),
+      updateDietPlan: serviceLocator(),
+      deleteDietPlan: serviceLocator(),
+    ),
   );
 }

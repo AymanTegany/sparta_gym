@@ -4,6 +4,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../../../core/theme/color_palette.dart';
 import '../../../../core/common/widgets/sidebar_layout.dart';
+import '../../../../core/services/audio_service.dart';
 import '../../domain/entities/attendance_entity.dart';
 import '../cubit/attendance_cubit.dart';
 import '../cubit/attendance_state.dart';
@@ -20,6 +21,11 @@ class _AttendancePageState extends State<AttendancePage> {
   final FocusNode _scanFocusNode = FocusNode();
   final TextEditingController _scanCtrl = TextEditingController();
   final TextEditingController _searchCtrl = TextEditingController();
+  
+  // لتعطيل المسح المتكرر لنفس العضو في فترة قصيرة
+  String? _lastScannedBarcode;
+  DateTime? _lastScannedTime;
+
   String _scanMode = 'تلقائي'; // تلقائي، دخول، خروج
 
   @override
@@ -42,8 +48,29 @@ class _AttendancePageState extends State<AttendancePage> {
   }
 
   void _onScanSubmitted(String value) {
-    if (value.trim().isEmpty) return;
-    context.read<AttendanceCubit>().processScan(value.trim(), _scanMode);
+    final scannedValue = value.trim();
+    if (scannedValue.isEmpty) return;
+
+    final now = DateTime.now();
+    if (_lastScannedBarcode == scannedValue &&
+        _lastScannedTime != null &&
+        now.difference(_lastScannedTime!).inSeconds < 5) {
+      _scanCtrl.clear();
+      _scanFocusNode.requestFocus();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم مسح هذا الكود للتو، يرجى الانتظار قليلاً.', style: TextStyle(fontFamily: 'Cairo')),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    _lastScannedBarcode = scannedValue;
+    _lastScannedTime = now;
+
+    context.read<AttendanceCubit>().processScan(scannedValue, _scanMode);
     _scanCtrl.clear();
     // إعادة التركيز بعد الإرسال
     _scanFocusNode.requestFocus();
@@ -100,6 +127,9 @@ class _AttendancePageState extends State<AttendancePage> {
               // إخلاء مربع البحث وإعادة تركيز الباركود
               _scanFocusNode.requestFocus();
             } else if (state is AttendanceError) {
+              if (state.message.contains('منتهي') || state.message.contains('منتهية')) {
+                AudioService.playAlertSound();
+              }
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Row(
@@ -625,13 +655,17 @@ class _AttendancePageState extends State<AttendancePage> {
           ),
           const Divider(height: 1),
           Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: 800,
-                  child: DataTable(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minWidth: constraints.maxWidth,
+                      ),
+                      child: DataTable(
                     headingRowColor: WidgetStateProperty.all(
                       isDark ? ColorPalette.tableHeaderDark : ColorPalette.tableHeaderLight.withOpacity(0.05),
                     ),
@@ -685,8 +719,10 @@ class _AttendancePageState extends State<AttendancePage> {
                   ),
                 ),
               ),
-            ),
+            );
+           },
           ),
+         ),
         ],
       ),
     );

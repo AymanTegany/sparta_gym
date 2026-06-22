@@ -362,8 +362,10 @@ class _PaymentsPageState extends State<PaymentsPage> {
               scrollDirection: Axis.vertical,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: 950,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: MediaQuery.of(context).size.width - 48,
+                  ),
                   child: DataTable(
                     headingRowColor: WidgetStateProperty.all(
                       isDark ? ColorPalette.tableHeaderDark : ColorPalette.tableHeaderLight.withOpacity(0.05),

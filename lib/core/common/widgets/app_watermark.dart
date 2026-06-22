@@ -13,7 +13,8 @@ class AppWatermark extends StatelessWidget {
     return Opacity(
       opacity: 0.35,
       child: Text(
-        'Sparta Gym v1.0.0',
+        'Powered by Ayman Tegany\n01030731218',
+        textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.bold,

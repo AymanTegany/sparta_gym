@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:file_picker/file_picker.dart';
 
 import '../../../../core/theme/color_palette.dart';
 import '../../../../core/common/widgets/sidebar_layout.dart';
@@ -23,6 +25,7 @@ class _SettingsPageState extends State<SettingsPage> {
   late final TextEditingController _addressCtrl;
   late final TextEditingController _registerCtrl;
   String _dbPath = 'جاري التحميل...';
+  String? _selectedLogoPath;
 
   @override
   void initState() {
@@ -67,7 +70,19 @@ class _SettingsPageState extends State<SettingsPage> {
           phone: _phoneCtrl.text.trim(),
           address: _addressCtrl.text.trim(),
           register: _registerCtrl.text.trim(),
+          logoPath: _selectedLogoPath,
         );
+  }
+
+  Future<void> _pickLogo() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.image,
+    );
+    if (result != null && result.files.single.path != null) {
+      setState(() {
+        _selectedLogoPath = result.files.single.path;
+      });
+    }
   }
 
   @override
@@ -96,6 +111,9 @@ class _SettingsPageState extends State<SettingsPage> {
               _phoneCtrl.text = state.settings.gymPhone;
               _addressCtrl.text = state.settings.gymAddress;
               _registerCtrl.text = state.settings.commercialRegister;
+              if (_selectedLogoPath == null && state.settings.logoPath.isNotEmpty) {
+                _selectedLogoPath = state.settings.logoPath;
+              }
             } else if (state is SettingsError) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -135,43 +153,84 @@ class _SettingsPageState extends State<SettingsPage> {
                               child: Column(
                                 children: [
                                   Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(
-                                        child: _buildTextField(
-                                          controller: _nameCtrl,
-                                          label: 'اسم الجيم *',
-                                          icon: Icons.fitness_center,
-                                          validator: (v) =>
-                                              (v == null || v.trim().isEmpty) ? 'الاسم مطلوب' : null,
+                                      // Logo picker
+                                      GestureDetector(
+                                        onTap: _pickLogo,
+                                        child: Container(
+                                          width: 100,
+                                          height: 100,
+                                          decoration: BoxDecoration(
+                                            color: theme.colorScheme.surfaceContainerHighest,
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: ColorPalette.primaryColor.withValues(alpha: 0.5)),
+                                          ),
+                                          child: _selectedLogoPath != null && _selectedLogoPath!.isNotEmpty
+                                              ? ClipRRect(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  child: Image.file(
+                                                    File(_selectedLogoPath!),
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                                )
+                                              : const Column(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    Icon(Icons.add_a_photo, color: ColorPalette.primaryColor),
+                                                    SizedBox(height: 4),
+                                                    Text('شعار الجيم', style: TextStyle(fontSize: 10)),
+                                                  ],
+                                                ),
                                         ),
                                       ),
                                       const SizedBox(width: 16),
                                       Expanded(
-                                        child: _buildTextField(
-                                          controller: _phoneCtrl,
-                                          label: 'رقم الهاتف',
-                                          icon: Icons.phone,
-                                          keyboardType: TextInputType.phone,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _buildTextField(
-                                          controller: _addressCtrl,
-                                          label: 'العنوان',
-                                          icon: Icons.location_on,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: _buildTextField(
-                                          controller: _registerCtrl,
-                                          label: 'السجل التجاري',
-                                          icon: Icons.app_registration,
+                                        child: Column(
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: _buildTextField(
+                                                    controller: _nameCtrl,
+                                                    label: 'اسم الجيم *',
+                                                    icon: Icons.fitness_center,
+                                                    validator: (v) =>
+                                                        (v == null || v.trim().isEmpty) ? 'الاسم مطلوب' : null,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 16),
+                                                Expanded(
+                                                  child: _buildTextField(
+                                                    controller: _phoneCtrl,
+                                                    label: 'رقم الهاتف',
+                                                    icon: Icons.phone,
+                                                    keyboardType: TextInputType.phone,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: _buildTextField(
+                                                    controller: _addressCtrl,
+                                                    label: 'العنوان',
+                                                    icon: Icons.location_on,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 16),
+                                                Expanded(
+                                                  child: _buildTextField(
+                                                    controller: _registerCtrl,
+                                                    label: 'السجل التجاري',
+                                                    icon: Icons.app_registration,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],

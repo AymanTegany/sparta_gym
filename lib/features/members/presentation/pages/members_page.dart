@@ -14,6 +14,11 @@ import '../widgets/members_data_table.dart';
 import '../widgets/members_filter_bar.dart';
 import '../widgets/members_stats_cards.dart';
 import '../widgets/renew_subscription_dialog.dart';
+import '../widgets/print_member_invoice.dart';
+import '../../../diets/presentation/cubit/diet_plans_cubit.dart';
+import '../../../payments/presentation/cubit/payments_cubit.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../auth/presentation/cubit/auth_state.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// شاشة إدارة العملاء (Members Management Page)
@@ -32,9 +37,10 @@ class _MembersPageState extends State<MembersPage> {
   @override
   void initState() {
     super.initState();
-    // تحميل المشتركين عند فتح الصفحة
+    // تحميل المشتركين والأنظمة الغذائية عند فتح الصفحة
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MembersCubit>().loadMembers();
+      context.read<DietPlansCubit>().fetchDietPlans();
     });
   }
 
@@ -50,8 +56,44 @@ class _MembersPageState extends State<MembersPage> {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AddMemberDialog(
-        onSave: (newMember) {
-          context.read<MembersCubit>().addMember(newMember);
+        onSave: (newMember, paymentMethod, {bool printInvoice = false}) async {
+          // الحصول على اسم الموظف الحالي
+          String employeeName = 'موظف';
+          final authState = context.read<AuthCubit>().state;
+          if (authState is AuthAuthenticated) {
+            employeeName = authState.user.fullName.isNotEmpty
+                ? authState.user.fullName
+                : authState.user.username;
+          }
+
+          // 1. حفظ العضو مؤقتاً بمدفوع = 0 ومتبقي = الصافي كامل
+          final memberToSave = newMember.copyWith(
+            paidAmount: 0,
+            remainingAmount: newMember.netPrice,
+          );
+
+          final success = await context.read<MembersCubit>().addMember(
+                memberToSave,
+                refreshList: newMember.paidAmount == 0,
+              );
+
+          // 2. إذا نجح الحفظ وكان هناك مبلغ مدفوع، نسجل الدفعة لإنشاء إيصال وتحديث الأرصدة
+          if (success && newMember.paidAmount > 0) {
+            await context.read<PaymentsCubit>().recordPayment(
+              memberId: newMember.memberId,
+              amount: newMember.paidAmount,
+              paymentMethod: paymentMethod,
+              employeeName: employeeName,
+              notes: 'دفعة أولى عند الاشتراك',
+            );
+            if (context.mounted) {
+              await context.read<MembersCubit>().loadMembers();
+            }
+          }
+
+          if (printInvoice && context.mounted) {
+            await printMemberA4Invoice(context, newMember);
+          }
         },
       ),
     );
@@ -64,7 +106,7 @@ class _MembersPageState extends State<MembersPage> {
       barrierDismissible: false,
       builder: (dialogContext) => AddMemberDialog(
         member: member,
-        onSave: (updatedMember) {
+        onSave: (updatedMember, paymentMethod, {bool printInvoice = false}) {
           context.read<MembersCubit>().updateMember(updatedMember);
         },
       ),
@@ -78,19 +120,15 @@ class _MembersPageState extends State<MembersPage> {
       builder: (dialogContext) => MemberDetailsDialog(
         member: member,
         onEdit: () {
-          Navigator.pop(dialogContext);
           _showEditMemberDialog(context, member);
         },
         onDelete: () {
-          Navigator.pop(dialogContext);
           _showDeleteConfirmDialog(context, member);
         },
         onRenew: () {
-          Navigator.pop(dialogContext);
           _showRenewDialog(context, member);
         },
         onAddPayment: () {
-          Navigator.pop(dialogContext);
           _showAddPaymentDialog(context, member);
         },
       ),
@@ -153,16 +191,42 @@ class _MembersPageState extends State<MembersPage> {
           required paidAmount,
           required startDate,
           required endDate,
-        }) {
-          context.read<MembersCubit>().renewSubscription(
+          required paymentMethod,
+        }) async {
+          // الحصول على اسم الموظف الحالي
+          String employeeName = 'موظف';
+          final authState = context.read<AuthCubit>().state;
+          if (authState is AuthAuthenticated) {
+            employeeName = authState.user.fullName.isNotEmpty
+                ? authState.user.fullName
+                : authState.user.username;
+          }
+
+          // 1. تجديد الاشتراك بوضع مبلغ مدفوع = 0، ومتبقي = الصافي الجديد
+          final success = await context.read<MembersCubit>().renewSubscription(
                 member: member,
                 newMembershipType: membershipType,
                 newPrice: price,
                 newDiscount: discount,
-                newPaidAmount: paidAmount,
+                newPaidAmount: 0,
                 newStartDate: startDate,
                 newEndDate: endDate,
+                refreshList: paidAmount == 0,
               );
+
+          // 2. إذا تم التجديد بنجاح وكان هناك مبلغ مدفوع، سجل الدفعة
+          if (success && paidAmount > 0) {
+            await context.read<PaymentsCubit>().recordPayment(
+              memberId: member.memberId,
+              amount: paidAmount,
+              paymentMethod: paymentMethod,
+              employeeName: employeeName,
+              notes: 'تجديد اشتراك: $membershipType',
+            );
+            if (context.mounted) {
+              await context.read<MembersCubit>().loadMembers();
+            }
+          }
         },
       ),
     );

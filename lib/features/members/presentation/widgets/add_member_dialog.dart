@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+
+import '../cubit/members_cubit.dart';
+import '../cubit/members_state.dart';
 
 import '../../../../core/theme/color_palette.dart';
 import '../../domain/entities/member_entity.dart';
@@ -8,6 +12,10 @@ import '../../../../init_dependencies.dart';
 import '../../../../core/usecase/usecase.dart';
 import '../../../memberships/domain/entities/membership_entity.dart';
 import '../../../memberships/domain/usecases/get_all_memberships.dart';
+import '../../../diets/domain/entities/diet_plan.dart';
+import '../../../diets/domain/usecases/get_diet_plans.dart';
+import '../../../trainers/domain/entities/trainer_entity.dart';
+import '../../../trainers/domain/usecases/get_all_trainers.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// ديالوج إضافة / تعديل عميل
@@ -18,8 +26,8 @@ class AddMemberDialog extends StatefulWidget {
   /// العميل المراد تعديله (null = إضافة جديد)
   final Member? member;
 
-  /// دالة الحفظ تُستدعى بكائن [Member] الجديد أو المعدّل
-  final Function(Member) onSave;
+  /// دالة الحفظ تُستدعى بكائن [Member] الجديد أو المعدّل وطريقة الدفع
+  final Function(Member member, String paymentMethod, {bool printInvoice}) onSave;
 
   const AddMemberDialog({
     super.key,
@@ -42,7 +50,6 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   late final TextEditingController _fullNameCtrl;
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _addressCtrl;
-  late final TextEditingController _emergencyContactCtrl;
   String? _selectedGender;
 
   // ──────────────── متحكمات بيانات الاشتراك ────────────────
@@ -51,6 +58,9 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   late final TextEditingController _discountCtrl;
   late final TextEditingController _paidCtrl;
   late final TextEditingController _trainerCtrl;
+  late final TextEditingController _startDateCtrl;
+  late final TextEditingController _endDateCtrl;
+  late final TextEditingController _remainingCtrl;
   String _membershipType = 'شهري';
   DateTime? _startDate;
   DateTime? _endDate;
@@ -65,6 +75,17 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   List<Membership> _memberships = [];
   bool _isLoadingMemberships = true;
 
+  // ──────────────── المدربون والأنظمة الغذائية ────────────────
+  List<Trainer> _trainers = [];
+  bool _isLoadingTrainers = true;
+  String? _selectedTrainerName;
+
+  List<DietPlan> _dietPlans = [];
+  bool _isLoadingDietPlans = true;
+  int? _selectedDietPlanId;
+
+  String _paymentMethod = 'نقدي';
+
   @override
   void initState() {
     super.initState();
@@ -74,8 +95,6 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     _fullNameCtrl = TextEditingController(text: m?.fullName ?? '');
     _phoneCtrl = TextEditingController(text: m?.phoneNumber ?? '');
     _addressCtrl = TextEditingController(text: m?.address ?? '');
-    _emergencyContactCtrl =
-        TextEditingController(text: m?.emergencyContact ?? '');
     _selectedGender = m?.gender;
 
     // توليد معرّف تلقائي للعميل الجديد
@@ -99,7 +118,18 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
         ? DateTime.tryParse(m.endDate)
         : DateTime.now().add(const Duration(days: 30));
 
+    _startDateCtrl = TextEditingController(
+      text: _startDate != null ? DateFormat('yyyy/MM/dd').format(_startDate!) : '',
+    );
+    _endDateCtrl = TextEditingController(
+      text: _endDate != null ? DateFormat('yyyy/MM/dd').format(_endDate!) : '',
+    );
+    _remainingCtrl = TextEditingController(text: '0');
+
     _notesCtrl = TextEditingController(text: m?.notes ?? '');
+
+    _selectedTrainerName = m?.trainerName;
+    _selectedDietPlanId = m?.dietPlanId;
 
     // حساب المبلغ المتبقي عند بدء التعديل
     _calculateRemaining();
@@ -109,6 +139,8 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     _discountCtrl.addListener(_calculateRemaining);
     _paidCtrl.addListener(_calculateRemaining);
     _loadMemberships();
+    _loadTrainers();
+    _loadDietPlans();
   }
 
   Future<void> _loadMemberships() async {
@@ -121,7 +153,11 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       },
       (memberships) {
         setState(() {
-          _memberships = memberships.where((m) => m.isActive).toList();
+          final uniqueMemberships = <String, Membership>{};
+          for (final m in memberships.where((m) => m.isActive)) {
+            uniqueMemberships[m.name] = m;
+          }
+          _memberships = uniqueMemberships.values.toList();
           _isLoadingMemberships = false;
           
           if (!_isEditing && _memberships.isNotEmpty) {
@@ -136,6 +172,44 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     );
   }
 
+  Future<void> _loadTrainers() async {
+    final result = await serviceLocator<GetAllTrainers>()(NoParams());
+    result.fold(
+      (failure) {
+        setState(() {
+          _isLoadingTrainers = false;
+        });
+      },
+      (trainers) {
+        setState(() {
+          final uniqueTrainers = <String, Trainer>{};
+          for (final t in trainers.where((t) => t.isActive)) {
+            uniqueTrainers[t.fullName] = t;
+          }
+          _trainers = uniqueTrainers.values.toList();
+          _isLoadingTrainers = false;
+        });
+      },
+    );
+  }
+
+  Future<void> _loadDietPlans() async {
+    final result = await serviceLocator<GetDietPlans>()(NoParams());
+    result.fold(
+      (failure) {
+        setState(() {
+          _isLoadingDietPlans = false;
+        });
+      },
+      (dietPlans) {
+        setState(() {
+          _dietPlans = dietPlans;
+          _isLoadingDietPlans = false;
+        });
+      },
+    );
+  }
+
   void _selectMembership(Membership m) {
     setState(() {
       _membershipType = m.name;
@@ -143,6 +217,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       
       if (_startDate != null) {
         _endDate = _startDate!.add(Duration(days: m.durationDays));
+        _endDateCtrl.text = DateFormat('yyyy/MM/dd').format(_endDate!);
       }
       _calculateRemaining();
     });
@@ -153,12 +228,14 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     _fullNameCtrl.dispose();
     _phoneCtrl.dispose();
     _addressCtrl.dispose();
-    _emergencyContactCtrl.dispose();
     _memberIdCtrl.dispose();
     _priceCtrl.dispose();
     _discountCtrl.dispose();
     _paidCtrl.dispose();
     _trainerCtrl.dispose();
+    _startDateCtrl.dispose();
+    _endDateCtrl.dispose();
+    _remainingCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
@@ -171,6 +248,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     final remaining = (price - discount) - paid;
     setState(() {
       _remainingAmount = remaining < 0 ? 0 : remaining;
+      _remainingCtrl.text = _remainingAmount.toStringAsFixed(0);
     });
   }
 
@@ -181,7 +259,6 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       initialDate: initial ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
-      locale: const Locale('ar'),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -196,7 +273,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   }
 
   /// حفظ بيانات العميل
-  void _save() {
+  void _save({bool printInvoice = false}) {
     if (!_formKey.currentState!.validate()) return;
 
     final now = DateTime.now();
@@ -213,9 +290,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       address:
           _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
       nationalId: widget.member?.nationalId,
-      emergencyContact: _emergencyContactCtrl.text.trim().isEmpty
-          ? null
-          : _emergencyContactCtrl.text.trim(),
+      emergencyContact: widget.member?.emergencyContact,
       membershipType: _membershipType,
       membershipPrice: double.tryParse(_priceCtrl.text) ?? 0,
       discount: double.tryParse(_discountCtrl.text) ?? 0,
@@ -225,17 +300,16 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           _startDate?.toIso8601String() ?? now.toIso8601String(),
       endDate: _endDate?.toIso8601String() ??
           now.add(const Duration(days: 30)).toIso8601String(),
-      trainerName: _trainerCtrl.text.trim().isEmpty
-          ? null
-          : _trainerCtrl.text.trim(),
+      trainerName: _selectedTrainerName,
       notes:
           _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       memberPhotoPath: widget.member?.memberPhotoPath,
+      dietPlanId: _selectedDietPlanId,
       createdAt:
           widget.member?.createdAt ?? now.toIso8601String(),
     );
 
-    widget.onSave(member);
+    widget.onSave(member, _paymentMethod, printInvoice: printInvoice);
     Navigator.of(context).pop();
   }
 
@@ -405,7 +479,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           ),
           const SizedBox(height: 16),
 
-          // الصف الثاني: الجنس + جهة اتصال الطوارئ
+          // الصف الثاني: الجنس + العنوان
           Row(
             children: [
               Expanded(
@@ -418,21 +492,6 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                 ),
               ),
               const SizedBox(width: 16),
-              Expanded(
-                child: _buildTextField(
-                  controller: _emergencyContactCtrl,
-                  label: 'جهة اتصال الطوارئ',
-                  icon: Icons.emergency_outlined,
-                  keyboardType: TextInputType.phone,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // الصف الثالث: العنوان
-          Row(
-            children: [
               Expanded(
                 child: _buildTextField(
                   controller: _addressCtrl,
@@ -461,8 +520,26 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
               Expanded(
                 child: _buildTextField(
                   controller: _memberIdCtrl,
-                  label: 'رقم العضوية',
+                  label: 'رقم العضوية (الباركود) *',
                   icon: Icons.confirmation_number_outlined,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'رقم العضوية مطلوب';
+                    }
+                    final state = context.read<MembersCubit>().state;
+                    if (state is MembersLoaded) {
+                      final exists = state.allMembers.any((m) {
+                        if (_isEditing && m.id == widget.member?.id) {
+                          return false;
+                        }
+                        return m.memberId.trim().toLowerCase() == v.trim().toLowerCase();
+                      });
+                      if (exists) {
+                        return 'هذا الباركود/رقم العضوية مسجل لعميل آخر بالفعل';
+                      }
+                    }
+                    return null;
+                  },
                 ),
               ),
               const SizedBox(width: 16),
@@ -539,7 +616,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                 child: _buildReadOnlyField(
                   label: 'المبلغ المتبقي',
                   icon: Icons.account_balance_wallet_outlined,
-                  value: _remainingAmount.toStringAsFixed(0),
+                  controller: _remainingCtrl,
                   valueColor: _remainingAmount > 0
                       ? ColorPalette.debtStatus
                       : ColorPalette.successColor,
@@ -549,6 +626,40 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           ),
           const SizedBox(height: 16),
 
+          // صف طريقة الدفع في حال وجود مبلغ مدفوع
+          if ((double.tryParse(_paidCtrl.text) ?? 0) > 0) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _paymentMethod,
+                    decoration: InputDecoration(
+                      labelText: 'طريقة الدفع *',
+                      prefixIcon: const Icon(Icons.account_balance_wallet),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'نقدي', child: Text('نقدي (كاش)')),
+                      DropdownMenuItem(value: 'فودافون كاش', child: Text('فودافون كاش')),
+                      DropdownMenuItem(value: 'إنستاباي', child: Text('إنستاباي')),
+                      DropdownMenuItem(value: 'تحويل بنكي', child: Text('تحويل بنكي')),
+                      DropdownMenuItem(value: 'بطاقة', child: Text('بطاقة')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) {
+                        setState(() {
+                          _paymentMethod = v;
+                        });
+                      }
+                    },
+                  ),
+                ),
+                const Expanded(child: SizedBox()),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // الصف الرابع: تاريخ البدء + تاريخ الانتهاء
           Row(
             children: [
@@ -556,19 +667,21 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                 child: _buildDateField(
                   label: 'تاريخ البدء',
                   icon: Icons.calendar_today,
-                  date: _startDate,
+                  controller: _startDateCtrl,
                   onTap: () async {
                     final picked =
                         await _pickDate(context, _startDate);
                     if (picked != null) {
                       setState(() {
                         _startDate = picked;
+                        _startDateCtrl.text = DateFormat('yyyy/MM/dd').format(picked);
                         final currentM = _memberships.firstWhere(
                           (m) => m.name == _membershipType,
                           orElse: () => const Membership(name: '', durationDays: 30, price: 0, freezeDays: 0, isActive: false, createdAt: ''),
                         );
                         if (currentM.name.isNotEmpty) {
                           _endDate = _startDate!.add(Duration(days: currentM.durationDays));
+                          _endDateCtrl.text = DateFormat('yyyy/MM/dd').format(_endDate!);
                         }
                       });
                     }
@@ -580,12 +693,15 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                 child: _buildDateField(
                   label: 'تاريخ الانتهاء',
                   icon: Icons.event_outlined,
-                  date: _endDate,
+                  controller: _endDateCtrl,
                   onTap: () async {
                     final picked =
                         await _pickDate(context, _endDate);
                     if (picked != null) {
-                      setState(() => _endDate = picked);
+                      setState(() {
+                        _endDate = picked;
+                        _endDateCtrl.text = DateFormat('yyyy/MM/dd').format(picked);
+                      });
                     }
                   },
                 ),
@@ -594,17 +710,72 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           ),
           const SizedBox(height: 16),
 
-          // الصف الخامس: اسم المدرب
+          // الصف الخامس: اسم المدرب والنظام الغذائي
           Row(
             children: [
               Expanded(
-                child: _buildTextField(
-                  controller: _trainerCtrl,
-                  label: 'اسم المدرب',
-                  icon: Icons.fitness_center,
-                ),
+                child: _isLoadingTrainers
+                    ? const Center(child: CircularProgressIndicator())
+                    : DropdownButtonFormField<String>(
+                        value: _trainers.any((t) => t.fullName == _selectedTrainerName)
+                            ? _selectedTrainerName
+                            : null,
+                        decoration: InputDecoration(
+                          labelText: 'المدرب المسؤول',
+                          prefixIcon: const Icon(Icons.fitness_center),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            child: Text('بدون مدرب (شخصي)'),
+                          ),
+                          ..._trainers.map((t) {
+                            return DropdownMenuItem<String>(
+                              value: t.fullName,
+                              child: Text(t.fullName),
+                            );
+                          }),
+                        ],
+                        onChanged: (v) {
+                          setState(() {
+                            _selectedTrainerName = v;
+                          });
+                        },
+                      ),
               ),
-              const Expanded(child: SizedBox()),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _isLoadingDietPlans
+                    ? const Center(child: CircularProgressIndicator())
+                    : DropdownButtonFormField<int>(
+                        value: _dietPlans.any((d) => d.id == _selectedDietPlanId)
+                            ? _selectedDietPlanId
+                            : null,
+                        decoration: InputDecoration(
+                          labelText: 'النظام الغذائي',
+                          prefixIcon: const Icon(Icons.restaurant_menu),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        items: [
+                          const DropdownMenuItem<int>(
+                            value: null,
+                            child: Text('بدون نظام غذائي'),
+                          ),
+                          ..._dietPlans.map((d) {
+                            return DropdownMenuItem<int>(
+                              value: d.id,
+                              child: Text(d.name),
+                            );
+                          }),
+                        ],
+                        onChanged: (v) {
+                          setState(() {
+                            _selectedDietPlanId = v;
+                          });
+                        },
+                      ),
+              ),
             ],
           ),
         ],
@@ -627,9 +798,15 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           labelText: 'ملاحظات',
           hintText: 'أدخل أي ملاحظات إضافية عن العميل...',
           alignLabelWithHint: true,
-          prefixIcon: const Padding(
-            padding: EdgeInsets.only(bottom: 200),
-            child: Icon(Icons.notes_outlined),
+          prefixIcon: const Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(top: 16),
+                child: Icon(Icons.notes_outlined),
+              ),
+            ],
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -678,9 +855,28 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           ),
           const SizedBox(width: 12),
 
+          // زر الحفظ وطباعة (فقط للإضافة)
+          if (!_isEditing) ...[
+            ElevatedButton.icon(
+              onPressed: () => _save(printInvoice: true),
+              icon: const Icon(Icons.print, size: 18),
+              label: const Text('حفظ وطباعة'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ColorPalette.secondaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 2,
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
+          
           // زر الحفظ
           ElevatedButton.icon(
-            onPressed: _save,
+            onPressed: () => _save(printInvoice: false),
             icon: Icon(
               _isEditing ? Icons.save : Icons.add,
               size: 18,
@@ -776,14 +972,12 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   Widget _buildDateField({
     required String label,
     required IconData icon,
-    required DateTime? date,
+    required TextEditingController controller,
     required VoidCallback onTap,
   }) {
-    final formatted =
-        date != null ? DateFormat('yyyy/MM/dd').format(date) : '';
     return TextFormField(
       readOnly: true,
-      controller: TextEditingController(text: formatted),
+      controller: controller,
       onTap: onTap,
       decoration: InputDecoration(
         labelText: label,
@@ -809,12 +1003,12 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   Widget _buildReadOnlyField({
     required String label,
     required IconData icon,
-    required String value,
+    required TextEditingController controller,
     Color? valueColor,
   }) {
     return TextFormField(
       readOnly: true,
-      controller: TextEditingController(text: value),
+      controller: controller,
       style: TextStyle(
         color: valueColor,
         fontWeight: FontWeight.bold,

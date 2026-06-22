@@ -56,7 +56,11 @@ class _MembersDataTableState extends State<MembersDataTable> {
     }
   }
 
-  void _sort<T>(Comparable<T> Function(Member m) getField, int columnIndex, bool ascending) {
+  void _sort<T>(
+    Comparable<T> Function(Member m) getField,
+    int columnIndex,
+    bool ascending,
+  ) {
     setState(() {
       _sortColumnIndex = columnIndex;
       _sortAscending = ascending;
@@ -81,7 +85,10 @@ class _MembersDataTableState extends State<MembersDataTable> {
 
     final totalPages = (_sortedMembers.length / _rowsPerPage).ceil();
     final startIndex = _currentPage * _rowsPerPage;
-    final endIndex = (startIndex + _rowsPerPage).clamp(0, _sortedMembers.length);
+    final endIndex = (startIndex + _rowsPerPage).clamp(
+      0,
+      _sortedMembers.length,
+    );
     final pageMembers = _sortedMembers.sublist(startIndex, endIndex);
 
     return Column(
@@ -110,7 +117,9 @@ class _MembersDataTableState extends State<MembersDataTable> {
                 sortColumnIndex: _sortColumnIndex,
                 sortAscending: _sortAscending,
                 headingRowColor: WidgetStateProperty.all(
-                  isDark ? ColorPalette.tableHeaderDark : ColorPalette.tableHeaderLight,
+                  isDark
+                      ? ColorPalette.tableHeaderDark
+                      : ColorPalette.tableHeaderLight,
                 ),
                 headingTextStyle: const TextStyle(
                   color: Colors.white,
@@ -161,11 +170,17 @@ class _MembersDataTableState extends State<MembersDataTable> {
                   return DataRow(
                     color: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.hovered)) {
-                        return theme.colorScheme.primary.withValues(alpha: 0.05);
+                        return theme.colorScheme.primary.withValues(
+                          alpha: 0.05,
+                        );
                       }
                       return isEvenRow
-                          ? (isDark ? ColorPalette.tableRowEvenDark : ColorPalette.tableRowEvenLight)
-                          : (isDark ? ColorPalette.tableRowOddDark : ColorPalette.tableRowOddLight);
+                          ? (isDark
+                                ? ColorPalette.tableRowEvenDark
+                                : ColorPalette.tableRowEvenLight)
+                          : (isDark
+                                ? ColorPalette.tableRowOddDark
+                                : ColorPalette.tableRowOddLight);
                     }),
                     cells: [
                       DataCell(
@@ -184,9 +199,12 @@ class _MembersDataTableState extends State<MembersDataTable> {
                           children: [
                             CircleAvatar(
                               radius: 16,
-                              backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                              backgroundColor: theme.colorScheme.primary
+                                  .withValues(alpha: 0.1),
                               child: Text(
-                                member.fullName.isNotEmpty ? member.fullName[0] : '?',
+                                member.fullName.isNotEmpty
+                                    ? member.fullName[0]
+                                    : '?',
                                 style: TextStyle(
                                   color: theme.colorScheme.primary,
                                   fontWeight: FontWeight.w600,
@@ -198,7 +216,9 @@ class _MembersDataTableState extends State<MembersDataTable> {
                             Flexible(
                               child: Text(
                                 member.fullName,
-                                style: const TextStyle(fontWeight: FontWeight.w500),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -209,9 +229,14 @@ class _MembersDataTableState extends State<MembersDataTable> {
                       DataCell(Text(member.phoneNumber ?? '-')),
                       DataCell(
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.08,
+                            ),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -227,19 +252,29 @@ class _MembersDataTableState extends State<MembersDataTable> {
                       DataCell(Text(_formatDate(member.startDate))),
                       DataCell(Text(_formatDate(member.endDate))),
                       DataCell(_buildStatusBadge(member)),
-                      DataCell(Text(
-                        '${member.paidAmount.toStringAsFixed(0)} ج.م',
-                        style: TextStyle(
-                          color: isDark ? ColorPalette.textPrimaryDark : ColorPalette.textPrimaryLight,
+                      DataCell(
+                        Text(
+                          '${member.paidAmount.toStringAsFixed(0)} ج.م',
+                          style: TextStyle(
+                            color: isDark
+                                ? ColorPalette.textPrimaryDark
+                                : ColorPalette.textPrimaryLight,
+                          ),
                         ),
-                      )),
-                      DataCell(Text(
-                        '${member.remainingAmount.toStringAsFixed(0)} ج.م',
-                        style: TextStyle(
-                          color: member.hasDebt ? ColorPalette.debtStatus : ColorPalette.activeStatus,
-                          fontWeight: member.hasDebt ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                      DataCell(
+                        Text(
+                          '${member.remainingAmount.toStringAsFixed(0)} ج.م',
+                          style: TextStyle(
+                            color: member.hasDebt
+                                ? ColorPalette.debtStatus
+                                : ColorPalette.activeStatus,
+                            fontWeight: member.hasDebt
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
                         ),
-                      )),
+                      ),
                       DataCell(
                         Text(
                           '${member.remainingDays} يوم',
@@ -247,12 +282,13 @@ class _MembersDataTableState extends State<MembersDataTable> {
                             color: member.remainingDays == 0
                                 ? ColorPalette.expiredStatus
                                 : member.remainingDays <= 7
-                                    ? ColorPalette.expiringSoonStatus
-                                    : (isDark
-                                        ? ColorPalette.textPrimaryDark
-                                        : ColorPalette.textPrimaryLight),
-                            fontWeight:
-                                member.remainingDays <= 7 ? FontWeight.w600 : FontWeight.w400,
+                                ? ColorPalette.expiringSoonStatus
+                                : (isDark
+                                      ? ColorPalette.textPrimaryDark
+                                      : ColorPalette.textPrimaryLight),
+                            fontWeight: member.remainingDays <= 7
+                                ? FontWeight.w600
+                                : FontWeight.w400,
                           ),
                         ),
                       ),
@@ -324,7 +360,9 @@ class _MembersDataTableState extends State<MembersDataTable> {
     return PopupMenuButton<String>(
       icon: Icon(
         Icons.more_vert_rounded,
-        color: isDark ? ColorPalette.textSecondaryDark : ColorPalette.textSecondaryLight,
+        color: isDark
+            ? ColorPalette.textSecondaryDark
+            : ColorPalette.textSecondaryLight,
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: isDark ? ColorPalette.cardDark : Colors.white,
@@ -352,13 +390,29 @@ class _MembersDataTableState extends State<MembersDataTable> {
         }
       },
       itemBuilder: (context) => [
-        _buildPopupItem('view', Icons.visibility_rounded, 'عرض التفاصيل', isDark),
+        _buildPopupItem(
+          'view',
+          Icons.visibility_rounded,
+          'عرض التفاصيل',
+          isDark,
+        ),
         _buildPopupItem('edit', Icons.edit_rounded, 'تعديل', isDark),
-        _buildPopupItem('renew', Icons.autorenew_rounded, 'تجديد اشتراك', isDark),
+        _buildPopupItem(
+          'renew',
+          Icons.autorenew_rounded,
+          'تجديد اشتراك',
+          isDark,
+        ),
         _buildPopupItem('payment', Icons.payment_rounded, 'إضافة دفعة', isDark),
         _buildPopupItem('print', Icons.print_rounded, 'طباعة بطاقة', isDark),
         const PopupMenuDivider(),
-        _buildPopupItem('delete', Icons.delete_rounded, 'حذف', isDark, isDestructive: true),
+        _buildPopupItem(
+          'delete',
+          Icons.delete_rounded,
+          'حذف',
+          isDark,
+          isDestructive: true,
+        ),
       ],
     );
   }
@@ -379,7 +433,9 @@ class _MembersDataTableState extends State<MembersDataTable> {
             size: 18,
             color: isDestructive
                 ? ColorPalette.errorColor
-                : (isDark ? ColorPalette.textSecondaryDark : ColorPalette.textSecondaryLight),
+                : (isDark
+                      ? ColorPalette.textSecondaryDark
+                      : ColorPalette.textSecondaryLight),
           ),
           const SizedBox(width: 10),
           Text(
@@ -387,7 +443,9 @@ class _MembersDataTableState extends State<MembersDataTable> {
             style: TextStyle(
               color: isDestructive
                   ? ColorPalette.errorColor
-                  : (isDark ? ColorPalette.textPrimaryDark : ColorPalette.textPrimaryLight),
+                  : (isDark
+                        ? ColorPalette.textPrimaryDark
+                        : ColorPalette.textPrimaryLight),
               fontSize: 13,
             ),
           ),
@@ -417,9 +475,7 @@ class _MembersDataTableState extends State<MembersDataTable> {
               : null,
           iconSize: 22,
           style: IconButton.styleFrom(
-            backgroundColor: isDark
-                ? ColorPalette.cardDark
-                : Colors.white,
+            backgroundColor: isDark ? ColorPalette.cardDark : Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
               side: BorderSide(
@@ -432,61 +488,58 @@ class _MembersDataTableState extends State<MembersDataTable> {
         ),
         const SizedBox(width: 8),
         // أرقام الصفحات
-        ...List.generate(
-          totalPages > 5 ? 5 : totalPages,
-          (index) {
-            int pageNumber;
-            if (totalPages <= 5) {
-              pageNumber = index;
-            } else if (_currentPage < 3) {
-              pageNumber = index;
-            } else if (_currentPage > totalPages - 4) {
-              pageNumber = totalPages - 5 + index;
-            } else {
-              pageNumber = _currentPage - 2 + index;
-            }
+        ...List.generate(totalPages > 5 ? 5 : totalPages, (index) {
+          int pageNumber;
+          if (totalPages <= 5) {
+            pageNumber = index;
+          } else if (_currentPage < 3) {
+            pageNumber = index;
+          } else if (_currentPage > totalPages - 4) {
+            pageNumber = totalPages - 5 + index;
+          } else {
+            pageNumber = _currentPage - 2 + index;
+          }
 
-            final isActive = pageNumber == _currentPage;
+          final isActive = pageNumber == _currentPage;
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 3),
-              child: InkWell(
-                onTap: () => setState(() => _currentPage = pageNumber),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: InkWell(
+              onTap: () => setState(() => _currentPage = pageNumber),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? theme.colorScheme.primary
+                      : (isDark ? ColorPalette.cardDark : Colors.white),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
                     color: isActive
                         ? theme.colorScheme.primary
-                        : (isDark ? ColorPalette.cardDark : Colors.white),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isActive
-                          ? theme.colorScheme.primary
-                          : (isDark
+                        : (isDark
                               ? Colors.white.withValues(alpha: 0.08)
                               : Colors.grey.shade300),
-                    ),
                   ),
-                  child: Text(
-                    '${pageNumber + 1}',
-                    style: TextStyle(
-                      color: isActive
-                          ? Colors.white
-                          : (isDark
+                ),
+                child: Text(
+                  '${pageNumber + 1}',
+                  style: TextStyle(
+                    color: isActive
+                        ? Colors.white
+                        : (isDark
                               ? ColorPalette.textPrimaryDark
                               : ColorPalette.textPrimaryLight),
-                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                      fontSize: 13,
-                    ),
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                    fontSize: 13,
                   ),
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          );
+        }),
         const SizedBox(width: 8),
         IconButton(
           icon: const Icon(Icons.chevron_left_rounded),
@@ -495,9 +548,7 @@ class _MembersDataTableState extends State<MembersDataTable> {
               : null,
           iconSize: 22,
           style: IconButton.styleFrom(
-            backgroundColor: isDark
-                ? ColorPalette.cardDark
-                : Colors.white,
+            backgroundColor: isDark ? ColorPalette.cardDark : Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
               side: BorderSide(

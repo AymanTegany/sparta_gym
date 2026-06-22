@@ -12,6 +12,11 @@ import '../../../features/attendance/presentation/pages/attendance_page.dart';
 import '../../../features/memberships/presentation/pages/memberships_page.dart';
 import '../../../features/payments/presentation/pages/payments_page.dart';
 import '../../../features/settings/presentation/pages/settings_page.dart';
+import '../../../features/trainers/presentation/pages/trainers_page.dart';
+import '../../../features/expenses/presentation/pages/expenses_page.dart';
+import '../../../features/inventory/presentation/pages/inventory_page.dart';
+import '../../../features/pos/presentation/pages/pos_page.dart';
+import '../../../features/diets/presentation/pages/diet_plans_page.dart';
 import '../../../init_dependencies.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
@@ -92,6 +97,21 @@ class _SidebarLayoutState extends State<SidebarLayout> {
       case 'settings':
         targetPage = const SettingsPage();
         break;
+      case 'trainers':
+        targetPage = const TrainersPage();
+        break;
+      case 'expenses':
+        targetPage = const ExpensesPage();
+        break;
+      case 'inventory':
+        targetPage = const InventoryPage();
+        break;
+      case 'pos':
+        targetPage = const PosPage();
+        break;
+      case 'diets':
+        targetPage = const DietPlansPage();
+        break;
       default:
         return;
     }
@@ -170,7 +190,7 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                 ),
                 child: Icon(
                   icon,
-                  color: isSelected ? primary : Colors.grey[400],
+                  color: isSelected ? primary : (theme.brightness == Brightness.dark ? Colors.grey[400] : Colors.grey[600]),
                   size: 24,
                 ),
               ),
@@ -199,7 +219,7 @@ class _SidebarLayoutState extends State<SidebarLayout> {
               children: [
                 Icon(
                   icon,
-                  color: isSelected ? primary : Colors.grey[400],
+                  color: isSelected ? primary : (theme.brightness == Brightness.dark ? Colors.grey[400] : Colors.grey[600]),
                   size: 22,
                 ),
                 const SizedBox(width: 16),
@@ -241,7 +261,10 @@ class _SidebarLayoutState extends State<SidebarLayout> {
           : authState.user.username;
     }
 
-    final sidebarBg = isDark ? const Color(0xFF161616) : const Color(0xFF1E1E1E);
+    final sidebarBg = isDark ? const Color(0xFF161616) : theme.cardColor;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final iconColor = isDark ? Colors.white : Colors.black87;
+    final dividerColor = isDark ? Colors.white12 : Colors.black12;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -259,7 +282,7 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                       Icon(Icons.fitness_center_rounded, color: primary, size: 32),
                       const SizedBox(height: 16),
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 16),
+                        icon: Icon(Icons.arrow_back_ios_new_rounded, color: iconColor, size: 16),
                         onPressed: _toggleSidebar,
                         tooltip: 'توسيع القائمة',
                       ),
@@ -274,8 +297,8 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                           const SizedBox(width: 12),
                           Text(
                             gymName,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: textColor,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                               overflow: TextOverflow.ellipsis,
@@ -284,14 +307,14 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                         ],
                       ),
                       IconButton(
-                        icon: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
+                        icon: Icon(Icons.arrow_forward_ios_rounded, color: iconColor, size: 16),
                         onPressed: _toggleSidebar,
                         tooltip: 'طي القائمة',
                       ),
                     ],
                   ),
           ),
-          const Divider(color: Colors.white12, height: 1),
+          Divider(color: dividerColor, height: 1),
 
           // عناصر الملاحة (Nav Items)
           Expanded(
@@ -340,10 +363,45 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                   page: 'settings',
                   theme: theme,
                 ),
+                _buildNavItem(
+                  context: context,
+                  icon: Icons.sports_gymnastics_rounded,
+                  title: 'إدارة المدربين',
+                  page: 'trainers',
+                  theme: theme,
+                ),
+                _buildNavItem(
+                  context: context,
+                  icon: Icons.account_balance_wallet_rounded,
+                  title: 'المصروفات',
+                  page: 'expenses',
+                  theme: theme,
+                ),
+                _buildNavItem(
+                  context: context,
+                  icon: Icons.inventory_2_rounded,
+                  title: 'المخزون',
+                  page: 'inventory',
+                  theme: theme,
+                ),
+                _buildNavItem(
+                  context: context,
+                  icon: Icons.point_of_sale_rounded,
+                  title: 'نقطة البيع (POS)',
+                  page: 'pos',
+                  theme: theme,
+                ),
+                _buildNavItem(
+                  context: context,
+                  icon: Icons.fastfood_rounded,
+                  title: 'الأنظمة الغذائية',
+                  page: 'diets',
+                  theme: theme,
+                ),
               ],
             ),
           ),
-          const Divider(color: Colors.white12, height: 1),
+          Divider(color: dividerColor, height: 1),
 
           // ذيل القائمة (Footer Profile & Logout)
           Container(
@@ -381,7 +439,7 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                           children: [
                             Text(
                               employeeName,
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                              style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13),
                               overflow: TextOverflow.ellipsis,
                             ),
                             const Text(
@@ -550,6 +608,36 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                             title: const Text('إعدادات النظام'),
                             selected: widget.activePage == 'settings',
                             onTap: () => _navigateTo(context, 'settings'),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.sports_gymnastics_rounded),
+                            title: const Text('إدارة المدربين'),
+                            selected: widget.activePage == 'trainers',
+                            onTap: () => _navigateTo(context, 'trainers'),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.account_balance_wallet_rounded),
+                            title: const Text('المصروفات'),
+                            selected: widget.activePage == 'expenses',
+                            onTap: () => _navigateTo(context, 'expenses'),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.inventory_2_rounded),
+                            title: const Text('المخزون'),
+                            selected: widget.activePage == 'inventory',
+                            onTap: () => _navigateTo(context, 'inventory'),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.point_of_sale_rounded),
+                            title: const Text('نقطة البيع (POS)'),
+                            selected: widget.activePage == 'pos',
+                            onTap: () => _navigateTo(context, 'pos'),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.fastfood_rounded),
+                            title: const Text('الأنظمة الغذائية'),
+                            selected: widget.activePage == 'diets',
+                            onTap: () => _navigateTo(context, 'diets'),
                           ),
                         ],
                       ),

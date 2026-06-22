@@ -24,6 +24,7 @@ class MemberModel extends Member {
     super.trainerName,
     super.notes,
     super.memberPhotoPath,
+    super.dietPlanId,
     required super.createdAt,
   });
 
@@ -50,6 +51,7 @@ class MemberModel extends Member {
       trainerName: map['trainerName'] as String?,
       notes: map['notes'] as String?,
       memberPhotoPath: map['memberPhotoPath'] as String?,
+      dietPlanId: map['dietPlanId'] as int?,
       createdAt: map['createdAt'] as String? ?? '',
     );
   }
@@ -77,6 +79,7 @@ class MemberModel extends Member {
       'trainerName': trainerName,
       'notes': notes,
       'memberPhotoPath': memberPhotoPath,
+      'dietPlanId': dietPlanId,
       'createdAt': createdAt,
     };
   }
@@ -104,11 +107,13 @@ class MemberModel extends Member {
       trainerName: member.trainerName,
       notes: member.notes,
       memberPhotoPath: member.memberPhotoPath,
+      dietPlanId: member.dietPlanId,
       createdAt: member.createdAt,
     );
   }
 
   /// إنشاء نسخة مع تعديلات
+  @override
   MemberModel copyWith({
     int? id,
     String? memberId,
@@ -130,6 +135,7 @@ class MemberModel extends Member {
     String? trainerName,
     String? notes,
     String? memberPhotoPath,
+    int? dietPlanId,
     String? createdAt,
   }) {
     return MemberModel(
@@ -153,6 +159,7 @@ class MemberModel extends Member {
       trainerName: trainerName ?? this.trainerName,
       notes: notes ?? this.notes,
       memberPhotoPath: memberPhotoPath ?? this.memberPhotoPath,
+      dietPlanId: dietPlanId ?? this.dietPlanId,
       createdAt: createdAt ?? this.createdAt,
     );
   }

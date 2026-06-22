@@ -3,8 +3,11 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 /// Singleton لإدارة قاعدة بيانات SQLite.
-/// يتعامل مع إنشاء وفتح قاعدة البيانات وإنشاء الجداول.
+/// يتعامل مع إنشاء وفتح قاعدة البيانات وإنشاء الجداول وتحديثها.
 class DatabaseHelper {
+  // ==========================================
+  // 1. إعدادات الـ Singleton
+  // ==========================================
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
@@ -12,8 +15,15 @@ class DatabaseHelper {
 
   DatabaseHelper._internal();
 
-  static const int _databaseVersion = 3;
+  // ==========================================
+  // 2. إعدادات قاعدة البيانات
+  // ==========================================
+  static const int _databaseVersion = 1;
   static const String _databaseName = 'sparta_gym.db';
+
+  // ==========================================
+  // 3. تهيئة قاعدة البيانات والوصول إليها
+  // ==========================================
 
   /// الحصول على قاعدة البيانات (إنشاؤها إذا لم تكن موجودة)
   Future<Database> get database async {
@@ -22,7 +32,7 @@ class DatabaseHelper {
     return _database!;
   }
 
-  /// تهيئة قاعدة البيانات
+  /// تهيئة قاعدة البيانات وتحديد مسارها
   Future<Database> _initDatabase() async {
     final appDocDir = await getApplicationDocumentsDirectory();
     final dbPath = p.join(appDocDir.path, 'SpartaGym', _databaseName);
@@ -32,14 +42,24 @@ class DatabaseHelper {
       options: OpenDatabaseOptions(
         version: _databaseVersion,
         onCreate: _onCreate,
-        onUpgrade: _onUpgrade,
       ),
     );
   }
 
-  /// إنشاء الجداول عند إنشاء قاعدة البيانات لأول مرة
+  // ==========================================
+  // 4. بناء قاعدة البيانات (_onCreate)
+  // ==========================================
+
+  /// إنشاء الجداول الأساسية عند بناء قاعدة البيانات لأول مرة
   Future<void> _onCreate(Database db, int version) async {
-    // جدول الأعضاء
+    await _createAllTables(db);
+    await _createAllIndexes(db);
+    await _insertDefaultInitialData(db);
+  }
+
+  /// دالة مساعدة لإنشاء جميع الجداول
+  Future<void> _createAllTables(Database db) async {
+    // 1. جدول الأعضاء
     await db.execute('''
       CREATE TABLE IF NOT EXISTS members (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,11 +82,12 @@ class DatabaseHelper {
         trainerName TEXT,
         notes TEXT,
         memberPhotoPath TEXT,
+        dietPlanId INTEGER,
         createdAt TEXT NOT NULL
       )
     ''');
 
-    // جدول مستخدمي النظام (المصادقة والترخيص)
+    // 2. جدول مستخدمي النظام (المصادقة والترخيص)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,7 +101,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // جدول باقات الاشتراكات (Memberships)
+    // 3. جدول باقات الاشتراكات
     await db.execute('''
       CREATE TABLE IF NOT EXISTS memberships (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,59 +115,22 @@ class DatabaseHelper {
       )
     ''');
 
-    // إدخال باقات افتراضية
-    final nowStr = DateTime.now().toIso8601String();
-    await db.insert('memberships', {
-      'name': 'شهري',
-      'durationDays': 30,
-      'price': 300.0,
-      'freezeDays': 0,
-      'visitsLimit': null,
-      'isActive': 1,
-      'createdAt': nowStr,
-    }, conflictAlgorithm: ConflictAlgorithm.ignore);
+    // 4. جدول المدربين
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS trainers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fullName TEXT NOT NULL,
+        phoneNumber TEXT NOT NULL DEFAULT '',
+        specialization TEXT,
+        salary REAL,
+        workingHours TEXT,
+        notes TEXT,
+        isActive INTEGER NOT NULL DEFAULT 1,
+        createdAt TEXT NOT NULL
+      )
+    ''');
 
-    await db.insert('memberships', {
-      'name': 'ربع سنوي',
-      'durationDays': 90,
-      'price': 800.0,
-      'freezeDays': 7,
-      'visitsLimit': null,
-      'isActive': 1,
-      'createdAt': nowStr,
-    }, conflictAlgorithm: ConflictAlgorithm.ignore);
-
-    await db.insert('memberships', {
-      'name': 'نصف سنوي',
-      'durationDays': 180,
-      'price': 1500.0,
-      'freezeDays': 15,
-      'visitsLimit': null,
-      'isActive': 1,
-      'createdAt': nowStr,
-    }, conflictAlgorithm: ConflictAlgorithm.ignore);
-
-    await db.insert('memberships', {
-      'name': 'سنوي',
-      'durationDays': 365,
-      'price': 2800.0,
-      'freezeDays': 30,
-      'visitsLimit': null,
-      'isActive': 1,
-      'createdAt': nowStr,
-    }, conflictAlgorithm: ConflictAlgorithm.ignore);
-
-    // فهارس لتسريع البحث
-    await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_members_memberId ON members(memberId)');
-    await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_members_fullName ON members(fullName)');
-    await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_members_phoneNumber ON members(phoneNumber)');
-    await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_members_endDate ON members(endDate)');
-
-    // جدول الحضور والانصراف (Attendance)
+    // 5. جدول الحضور والانصراف
     await db.execute('''
       CREATE TABLE IF NOT EXISTS attendance (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -158,12 +142,7 @@ class DatabaseHelper {
       )
     ''');
 
-    await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_attendance_memberId ON attendance(memberId)');
-    await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_attendance_checkInTime ON attendance(checkInTime)');
-
-    // جدول المدفوعات (Payments)
+    // 6. جدول المدفوعات
     await db.execute('''
       CREATE TABLE IF NOT EXISTS payments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -178,53 +157,144 @@ class DatabaseHelper {
       )
     ''');
 
-    await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_payments_memberId ON payments(memberId)');
-    await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_payments_paymentDate ON payments(paymentDate)');
+    // 7. جدول الأنظمة الغذائية
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS diet_plans (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        meals TEXT NOT NULL,
+        notes TEXT,
+        createdAt TEXT NOT NULL
+      )
+    ''');
+
+    // 8. جدول المصروفات
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        category TEXT NOT NULL,
+        amount REAL NOT NULL,
+        date TEXT NOT NULL,
+        notes TEXT,
+        createdAt TEXT NOT NULL
+      )
+    ''');
+
+    // 9. جدول عناصر المخزون
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS inventory_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        price REAL NOT NULL DEFAULT 0,
+        cost REAL NOT NULL DEFAULT 0,
+        quantity INTEGER NOT NULL DEFAULT 0,
+        barcode TEXT,
+        createdAt TEXT NOT NULL
+      )
+    ''');
+
+    // 10. جدول المبيعات
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pos_sales (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        receiptId TEXT NOT NULL UNIQUE,
+        totalAmount REAL NOT NULL DEFAULT 0,
+        discount REAL NOT NULL DEFAULT 0,
+        finalAmount REAL NOT NULL DEFAULT 0,
+        paymentMethod TEXT NOT NULL,
+        memberId TEXT,
+        date TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+      )
+    ''');
+
+    // 11. جدول عناصر المبيعات
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pos_sale_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        saleId INTEGER NOT NULL,
+        itemId INTEGER NOT NULL,
+        quantity INTEGER NOT NULL,
+        unitPrice REAL NOT NULL,
+        subtotal REAL NOT NULL,
+        FOREIGN KEY(saleId) REFERENCES pos_sales(id) ON DELETE CASCADE,
+        FOREIGN KEY(itemId) REFERENCES inventory_items(id) ON DELETE RESTRICT
+      )
+    ''');
   }
 
-  /// ترقية قاعدة البيانات عند تحديث الإصدار
-  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS attendance (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          memberId TEXT NOT NULL,
-          checkInTime TEXT NOT NULL,
-          checkOutTime TEXT,
-          durationMinutes INTEGER,
-          FOREIGN KEY(memberId) REFERENCES members(memberId) ON DELETE CASCADE
-        )
-      ''');
-      await db.execute(
-          'CREATE INDEX IF NOT EXISTS idx_attendance_memberId ON attendance(memberId)');
-      await db.execute(
-          'CREATE INDEX IF NOT EXISTS idx_attendance_checkInTime ON attendance(checkInTime)');
+  /// دالة مساعدة لإنشاء الفهارس (Indexes) لتسريع البحث
+  Future<void> _createAllIndexes(Database db) async {
+    // فهارس الأعضاء
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_members_memberId ON members(memberId)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_members_fullName ON members(fullName)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_members_phoneNumber ON members(phoneNumber)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_members_endDate ON members(endDate)');
+
+    // فهارس الحضور
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_memberId ON attendance(memberId)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_checkInTime ON attendance(checkInTime)');
+
+    // فهارس المدفوعات
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_payments_memberId ON payments(memberId)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_payments_paymentDate ON payments(paymentDate)');
+  }
+
+  /// دالة مساعدة لإدخال البيانات الافتراضية للأنظمة الغذائية وباقات الاشتراك
+  Future<void> _insertDefaultInitialData(Database db) async {
+    final nowStr = DateTime.now().toIso8601String();
+
+    // 1. إدخال باقات اشتراك افتراضية
+    final defaultMemberships = [
+      {'name': 'تمرينة واحدة', 'durationDays': 1, 'price': 50.0, 'freezeDays': 0, 'visitsLimit': 1, 'isActive': 1, 'createdAt': nowStr},
+      {'name': 'شهري', 'durationDays': 30, 'price': 300.0, 'freezeDays': 0, 'visitsLimit': null, 'isActive': 1, 'createdAt': nowStr},
+      {'name': 'ربع سنوي', 'durationDays': 90, 'price': 800.0, 'freezeDays': 7, 'visitsLimit': null, 'isActive': 1, 'createdAt': nowStr},
+      {'name': 'نصف سنوي', 'durationDays': 180, 'price': 1500.0, 'freezeDays': 15, 'visitsLimit': null, 'isActive': 1, 'createdAt': nowStr},
+      {'name': 'سنوي', 'durationDays': 365, 'price': 2800.0, 'freezeDays': 30, 'visitsLimit': null, 'isActive': 1, 'createdAt': nowStr},
+    ];
+
+    for (var membership in defaultMemberships) {
+      await db.insert('memberships', membership, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
 
-    if (oldVersion < 3) {
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS payments (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          receiptId TEXT NOT NULL UNIQUE,
-          memberId TEXT NOT NULL,
-          amount REAL NOT NULL,
-          paymentMethod TEXT NOT NULL,
-          paymentDate TEXT NOT NULL,
-          employeeName TEXT NOT NULL,
-          notes TEXT,
-          FOREIGN KEY(memberId) REFERENCES members(memberId) ON DELETE CASCADE
-        )
-      ''');
-      await db.execute(
-          'CREATE INDEX IF NOT EXISTS idx_payments_memberId ON payments(memberId)');
-      await db.execute(
-          'CREATE INDEX IF NOT EXISTS idx_payments_paymentDate ON payments(paymentDate)');
+    // 2. إدخال 3 أنظمة غذائية افتراضية
+    final defaultDietPlans = [
+      {
+        'name': 'نظام التضخيم (Bulking)',
+        'description': 'نظام غذائي غني بالسعرات الحرارية والبروتين لزيادة الكتلة العضلية.',
+        'meals': 'وجبة 1: شوفان وبيض وموز.\\nوجبة 2: دجاج وأرز وخضروات.\\nوجبة 3: لحم وبطاطس.\\nوجبة 4: تونة وسلطة.',
+        'notes': 'تأكد من شرب 3-4 لتر ماء يومياً.',
+        'createdAt': nowStr,
+      },
+      {
+        'name': 'نظام التنشيف (Cutting)',
+        'description': 'نظام غذائي قليل الكربوهيدرات لحرق الدهون مع الحفاظ على العضلات.',
+        'meals': 'وجبة 1: بياض البيض وسبانخ.\\nوجبة 2: صدر دجاج مشوي مع بروكلي.\\nوجبة 3: سمك مشوي وسلطة خضراء.\\nوجبة 4: جبن قريش.',
+        'notes': 'يُفضل ممارسة الكارديو بعد التمرين أو على معدة فارغة.',
+        'createdAt': nowStr,
+      },
+      {
+        'name': 'نظام المحافظة (Maintenance)',
+        'description': 'نظام غذائي متوازن للحفاظ على الوزن الحالي واللياقة.',
+        'meals': 'وجبة 1: بيض كامل وتوست أسمر.\\nوجبة 2: لحم أو دجاج مع أرز وسلطة.\\nوجبة 3: فواكه ومكسرات.\\nوجبة 4: زبادي يوناني وتونة.',
+        'notes': 'يمكن أخذ وجبة مفتوحة (Cheat Meal) مرة في الأسبوع.',
+        'createdAt': nowStr,
+      }
+    ];
+
+    for (var plan in defaultDietPlans) {
+      await db.insert('diet_plans', plan, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
   }
 
-  /// إغلاق قاعدة البيانات
+  // ==========================================
+  // 5. إدارة الموارد (Resource Management)
+  // ==========================================
+
+  /// إغلاق قاعدة البيانات بأمان
   Future<void> close() async {
     final db = _database;
     if (db != null) {

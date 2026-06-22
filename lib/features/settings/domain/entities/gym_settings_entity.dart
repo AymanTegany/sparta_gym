@@ -7,6 +7,7 @@ class GymSettings extends Equatable {
   final String gymAddress;
   final String commercialRegister;
   final String themeMode; // 'light' or 'dark'
+  final String logoPath;
 
   const GymSettings({
     required this.gymName,
@@ -14,6 +15,7 @@ class GymSettings extends Equatable {
     required this.gymAddress,
     required this.commercialRegister,
     required this.themeMode,
+    required this.logoPath,
   });
 
   /// قيم افتراضية للإعدادات عند أول تشغيل
@@ -24,6 +26,7 @@ class GymSettings extends Equatable {
       gymAddress: '',
       commercialRegister: '',
       themeMode: 'light',
+      logoPath: '',
     );
   }
 
@@ -33,6 +36,7 @@ class GymSettings extends Equatable {
     String? gymAddress,
     String? commercialRegister,
     String? themeMode,
+    String? logoPath,
   }) {
     return GymSettings(
       gymName: gymName ?? this.gymName,
@@ -40,6 +44,7 @@ class GymSettings extends Equatable {
       gymAddress: gymAddress ?? this.gymAddress,
       commercialRegister: commercialRegister ?? this.commercialRegister,
       themeMode: themeMode ?? this.themeMode,
+      logoPath: logoPath ?? this.logoPath,
     );
   }
 
@@ -50,5 +55,6 @@ class GymSettings extends Equatable {
         gymAddress,
         commercialRegister,
         themeMode,
+        logoPath,
       ];
 }

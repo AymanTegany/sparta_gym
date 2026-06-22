@@ -198,19 +198,42 @@ class _MembershipsPageState extends State<MembershipsPage> {
                           ),
                           columns: const [
                             DataColumn(label: Text('اسم الباقة', style: TextStyle(fontWeight: FontWeight.bold))),
+                            DataColumn(label: Text('الإجراءات', style: TextStyle(fontWeight: FontWeight.bold))),
                             DataColumn(label: Text('مدة الاشتراك', style: TextStyle(fontWeight: FontWeight.bold))),
                             DataColumn(label: Text('السعر', style: TextStyle(fontWeight: FontWeight.bold))),
                             DataColumn(label: Text('أيام التجميد مسموح', style: TextStyle(fontWeight: FontWeight.bold))),
                             DataColumn(label: Text('الزيارات المسموحة', style: TextStyle(fontWeight: FontWeight.bold))),
                             DataColumn(label: Text('حالة الباقة', style: TextStyle(fontWeight: FontWeight.bold))),
                             DataColumn(label: Text('تاريخ الإنشاء', style: TextStyle(fontWeight: FontWeight.bold))),
-                            DataColumn(label: Text('الإجراءات', style: TextStyle(fontWeight: FontWeight.bold))),
                           ],
                           rows: memberships.map((membership) {
                             return DataRow(
                               cells: [
                                 // اسم الباقة
                                 DataCell(Text(membership.name, style: const TextStyle(fontWeight: FontWeight.bold))),
+                                // الإجراءات
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_outlined, color: Colors.blue, size: 20),
+                                        tooltip: 'تعديل الباقة',
+                                        onPressed: () => _showEditMembershipDialog(context, membership),
+                                        constraints: const BoxConstraints(),
+                                        padding: const EdgeInsets.all(6),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
+                                        tooltip: 'حذف الباقة',
+                                        onPressed: () => _showDeleteConfirmDialog(context, membership),
+                                        constraints: const BoxConstraints(),
+                                        padding: const EdgeInsets.all(6),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                                 // مدة الاشتراك
                                 DataCell(Text('${membership.durationDays} يوم')),
                                 // السعر
@@ -249,23 +272,6 @@ class _MembershipsPageState extends State<MembershipsPage> {
                                 ),
                                 // تاريخ الإنشاء
                                 DataCell(Text(_formatDate(membership.createdAt))),
-                                // الإجراءات
-                                DataCell(
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.edit_outlined, color: Colors.blue),
-                                        tooltip: 'تعديل الباقة',
-                                        onPressed: () => _showEditMembershipDialog(context, membership),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
-                                        tooltip: 'حذف الباقة',
-                                        onPressed: () => _showDeleteConfirmDialog(context, membership),
-                                      ),
-                                    ],
-                                  ),
-                                ),
                               ],
                             );
                           }).toList(),

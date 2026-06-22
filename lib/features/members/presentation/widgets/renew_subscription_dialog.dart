@@ -25,6 +25,7 @@ class RenewSubscriptionDialog extends StatefulWidget {
     required double paidAmount,
     required String startDate,
     required String endDate,
+    required String paymentMethod,
   }) onRenew;
 
   const RenewSubscriptionDialog({
@@ -46,12 +47,15 @@ class _RenewSubscriptionDialogState extends State<RenewSubscriptionDialog> {
   late final TextEditingController _priceCtrl;
   late final TextEditingController _discountCtrl;
   late final TextEditingController _paidCtrl;
+  late final TextEditingController _startDateCtrl;
+  late final TextEditingController _endDateCtrl;
 
   // ──────────────── بيانات الاشتراك الجديد ────────────────
   String _membershipType = 'شهري';
   late DateTime _startDate;
   late DateTime _endDate;
   double _remainingAmount = 0;
+  String _paymentMethod = 'نقدي';
 
   // ──────────────── الباقات المخزنة بقاعدة البيانات ────────────────
   List<Membership> _memberships = [];
@@ -69,6 +73,9 @@ class _RenewSubscriptionDialogState extends State<RenewSubscriptionDialog> {
     _startDate = DateTime.now();
     _endDate = _startDate.add(const Duration(days: 30));
 
+    _startDateCtrl = TextEditingController(text: _formatDate(_startDate));
+    _endDateCtrl = TextEditingController(text: _formatDate(_endDate));
+
     // الاستماع لتغييرات الحقول المالية
     _priceCtrl.addListener(_calculateRemaining);
     _discountCtrl.addListener(_calculateRemaining);
@@ -81,6 +88,8 @@ class _RenewSubscriptionDialogState extends State<RenewSubscriptionDialog> {
     _priceCtrl.dispose();
     _discountCtrl.dispose();
     _paidCtrl.dispose();
+    _startDateCtrl.dispose();
+    _endDateCtrl.dispose();
     super.dispose();
   }
 
@@ -105,7 +114,7 @@ class _RenewSubscriptionDialogState extends State<RenewSubscriptionDialog> {
       },
       (memberships) {
         setState(() {
-          _memberships = memberships.where((m) => m.isActive).toList();
+          _memberships = List<Membership>.from(memberships.where((m) => m.isActive));
           _isLoadingMemberships = false;
           
           if (_memberships.isNotEmpty) {
@@ -138,6 +147,7 @@ class _RenewSubscriptionDialogState extends State<RenewSubscriptionDialog> {
     if (currentM.name.isNotEmpty) {
       setState(() {
         _endDate = _startDate.add(Duration(days: currentM.durationDays));
+        _endDateCtrl.text = _formatDate(_endDate);
       });
     }
   }
@@ -149,7 +159,6 @@ class _RenewSubscriptionDialogState extends State<RenewSubscriptionDialog> {
       initialDate: initial,
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
-      locale: const Locale('ar'),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -184,6 +193,7 @@ class _RenewSubscriptionDialogState extends State<RenewSubscriptionDialog> {
       paidAmount: double.tryParse(_paidCtrl.text) ?? 0,
       startDate: _startDate.toIso8601String(),
       endDate: _endDate.toIso8601String(),
+      paymentMethod: _paymentMethod,
     );
     Navigator.of(context).pop();
   }
@@ -279,19 +289,47 @@ class _RenewSubscriptionDialogState extends State<RenewSubscriptionDialog> {
                         ),
                         const SizedBox(height: 16),
 
+                        // طريقة الدفع في حال وجود مبلغ مدفوع تجديدياً
+                        if ((double.tryParse(_paidCtrl.text) ?? 0) > 0) ...[
+                          DropdownButtonFormField<String>(
+                            value: _paymentMethod,
+                            decoration: InputDecoration(
+                              labelText: 'طريقة الدفع *',
+                              prefixIcon: const Icon(Icons.account_balance_wallet),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            items: const [
+                              DropdownMenuItem(value: 'نقدي', child: Text('نقدي (كاش)')),
+                              DropdownMenuItem(value: 'فودافون كاش', child: Text('فودافون كاش')),
+                              DropdownMenuItem(value: 'إنستاباي', child: Text('إنستاباي')),
+                              DropdownMenuItem(value: 'تحويل بنكي', child: Text('تحويل بنكي')),
+                              DropdownMenuItem(value: 'بطاقة', child: Text('بطاقة')),
+                            ],
+                            onChanged: (v) {
+                              if (v != null) {
+                                setState(() {
+                                  _paymentMethod = v;
+                                });
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
                         // تواريخ البدء والانتهاء
                         Row(
                           children: [
                             Expanded(
                               child: _buildDateField(
                                 label: 'تاريخ البدء',
-                                date: _startDate,
+                                controller: _startDateCtrl,
                                 onTap: () async {
                                   final picked =
                                       await _pickDate(_startDate);
                                   if (picked != null) {
                                     setState(() {
                                       _startDate = picked;
+                                      _startDateCtrl.text = _formatDate(picked);
                                     });
                                     _updateEndDate();
                                   }
@@ -302,12 +340,15 @@ class _RenewSubscriptionDialogState extends State<RenewSubscriptionDialog> {
                             Expanded(
                               child: _buildDateField(
                                 label: 'تاريخ الانتهاء',
-                                date: _endDate,
+                                controller: _endDateCtrl,
                                 onTap: () async {
                                   final picked =
                                       await _pickDate(_endDate);
                                   if (picked != null) {
-                                    setState(() => _endDate = picked);
+                                    setState(() {
+                                      _endDate = picked;
+                                      _endDateCtrl.text = _formatDate(picked);
+                                    });
                                   }
                                 },
                               ),
@@ -566,12 +607,12 @@ class _RenewSubscriptionDialogState extends State<RenewSubscriptionDialog> {
 
   Widget _buildDateField({
     required String label,
-    required DateTime date,
+    required TextEditingController controller,
     required VoidCallback onTap,
   }) {
     return TextFormField(
       readOnly: true,
-      controller: TextEditingController(text: _formatDate(date)),
+      controller: controller,
       onTap: onTap,
       decoration: InputDecoration(
         labelText: label,

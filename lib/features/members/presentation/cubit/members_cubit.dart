@@ -139,27 +139,39 @@ class MembersCubit extends Cubit<MembersState> {
   // ──────────────── العمليات CRUD ────────────────
 
   /// إضافة عميل جديد
-  Future<void> addMember(Member member) async {
+  Future<bool> addMember(Member member, {bool refreshList = true}) async {
     final result = await _addMember(member);
 
-    result.fold(
-      (failure) => emit(MembersError(failure.message)),
+    return result.fold(
+      (failure) {
+        emit(MembersError(failure.message));
+        return false;
+      },
       (id) {
         emit(const MemberActionSuccess('تم إضافة العميل بنجاح'));
-        loadMembers(); // إعادة تحميل البيانات
+        if (refreshList) {
+          loadMembers(); // إعادة تحميل البيانات
+        }
+        return true;
       },
     );
   }
 
   /// تحديث بيانات عميل
-  Future<void> updateMember(Member member) async {
+  Future<bool> updateMember(Member member, {bool refreshList = true}) async {
     final result = await _updateMember(member);
 
-    result.fold(
-      (failure) => emit(MembersError(failure.message)),
+    return result.fold(
+      (failure) {
+        emit(MembersError(failure.message));
+        return false;
+      },
       (_) {
         emit(const MemberActionSuccess('تم تحديث بيانات العميل بنجاح'));
-        loadMembers();
+        if (refreshList) {
+          loadMembers();
+        }
+        return true;
       },
     );
   }
@@ -178,7 +190,7 @@ class MembersCubit extends Cubit<MembersState> {
   }
 
   /// تجديد اشتراك عميل
-  Future<void> renewSubscription({
+  Future<bool> renewSubscription({
     required Member member,
     required String newMembershipType,
     required double newPrice,
@@ -186,6 +198,7 @@ class MembersCubit extends Cubit<MembersState> {
     required double newPaidAmount,
     required String newStartDate,
     required String newEndDate,
+    bool refreshList = true,
   }) async {
     final newRemainingAmount = (newPrice - newDiscount) - newPaidAmount;
 
@@ -210,10 +223,11 @@ class MembersCubit extends Cubit<MembersState> {
       trainerName: member.trainerName,
       notes: member.notes,
       memberPhotoPath: member.memberPhotoPath,
+      dietPlanId: member.dietPlanId,
       createdAt: member.createdAt,
     );
 
-    await updateMember(updatedMember);
+    return await updateMember(updatedMember, refreshList: refreshList);
   }
 
   /// إضافة دفعة لعميل

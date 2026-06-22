@@ -63,6 +63,7 @@ dependencies:
   qr_flutter: ^4.1.0
   printing: ^5.11.1
   pdf: ^3.10.7
+  file_picker: ^11.0.2
 
 dev_dependencies:
   flutter_test:
@@ -120,15 +121,15 @@ flutter:
 
 flutter_launcher_icons:
   android: "launcher_icon"
-  ios: true
-  image_path: "lib/core/images/logo.png"
+  ios: false
+  image_path: "lib/core/images/gym_icon.png"
   web:
     generate: true
-    image_path: "lib/core/images/logo.png"
+    image_path: "lib/core/images/gym_icon.png"
   windows:
     generate: true
-    image_path: "lib/core/images/logo.png"
+    image_path: "lib/core/images/gym_icon.png"
     icon_size: 48
   macos:
-    generate: true
-    image_path: "lib/core/images/logo.png"
+    generate: false
+    image_path: "lib/core/images/gym_icon.png"

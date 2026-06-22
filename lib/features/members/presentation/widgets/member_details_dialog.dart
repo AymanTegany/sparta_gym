@@ -8,6 +8,9 @@ import '../../../payments/presentation/cubit/payments_cubit.dart';
 import '../../../payments/presentation/cubit/payments_state.dart';
 import '../../../payments/presentation/widgets/receipt_dialog.dart';
 import '../../../payments/domain/entities/payment_entity.dart';
+import '../../../diets/domain/entities/diet_plan.dart';
+import '../../../diets/presentation/cubit/diet_plans_cubit.dart';
+import '../../../diets/presentation/cubit/diet_plans_state.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// ديالوج تفاصيل العميل
@@ -69,6 +72,17 @@ class MemberDetailsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final dietPlansState = context.watch<DietPlansCubit>().state;
+    DietPlan? memberDietPlan;
+    if (dietPlansState is DietPlansLoaded && member.dietPlanId != null) {
+      for (final d in dietPlansState.dietPlans) {
+        if (d.id == member.dietPlanId) {
+          memberDietPlan = d;
+          break;
+        }
+      }
+    }
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Dialog(
@@ -92,6 +106,10 @@ class MemberDetailsDialog extends StatelessWidget {
                       const SizedBox(height: 20),
                       _buildSubscriptionSection(theme),
                       const SizedBox(height: 20),
+                      if (member.dietPlanId != null) ...[
+                        _buildDietPlanSection(theme, memberDietPlan),
+                        const SizedBox(height: 20),
+                      ],
                       _buildPaymentsSection(theme),
                       const SizedBox(height: 20),
                       _buildAttendanceSection(theme),
@@ -216,17 +234,9 @@ class MemberDetailsDialog extends StatelessWidget {
           _infoItem('الاسم الكامل', member.fullName, Icons.person),
           _infoItem(
               'رقم الهاتف', member.phoneNumber ?? '—', Icons.phone),
-          _infoItem(
-              'البريد الإلكتروني', member.email ?? '—', Icons.email_outlined),
           _infoItem('الجنس', member.gender ?? '—', Icons.wc),
-          _infoItem('تاريخ الميلاد', _formatDate(member.birthDate),
-              Icons.cake_outlined),
           _infoItem(
               'العنوان', member.address ?? '—', Icons.location_on_outlined),
-          _infoItem('الرقم القومي', member.nationalId ?? '—',
-              Icons.badge_outlined),
-          _infoItem('جهة اتصال الطوارئ', member.emergencyContact ?? '—',
-              Icons.emergency_outlined),
         ],
       ),
     );
@@ -361,6 +371,76 @@ class MemberDetailsDialog extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // القسم: النظام الغذائي
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildDietPlanSection(ThemeData theme, DietPlan? dietPlan) {
+    return _buildSection(
+      theme: theme,
+      title: 'النظام الغذائي المخصص',
+      icon: Icons.restaurant_menu,
+      child: dietPlan == null || dietPlan.name.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'جاري تحميل تفاصيل النظام الغذائي...',
+                style: TextStyle(color: Colors.grey),
+              ),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  dietPlan.name,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                if (dietPlan.description?.isNotEmpty == true) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    dietPlan.description!,
+                    style: TextStyle(fontSize: 14, color: theme.textTheme.bodyMedium?.color),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                const Text(
+                  'الوجبات:',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: ColorPalette.secondaryColor),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: theme.dividerColor),
+                  ),
+                  width: double.infinity,
+                  child: Text(
+                    dietPlan.meals,
+                    style: const TextStyle(fontSize: 14, height: 1.5),
+                  ),
+                ),
+                if (dietPlan.notes?.isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'ملاحظات النظام:',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.orange),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    dietPlan.notes!,
+                    style: const TextStyle(fontSize: 13, color: Colors.black54),
+                  ),
+                ],
+              ],
+            ),
     );
   }
 
