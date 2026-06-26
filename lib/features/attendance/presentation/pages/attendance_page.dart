@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+import 'package:awesome_dialog/awesome_dialog.dart';
 
 import '../../../../core/theme/color_palette.dart';
 import '../../../../core/common/widgets/sidebar_layout.dart';
@@ -101,54 +102,38 @@ class _AttendancePageState extends State<AttendancePage> {
       body: BlocConsumer<AttendanceCubit, AttendanceState>(
           listener: (context, state) {
             if (state is AttendanceActionSuccess) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      Icon(
-                        state.type == 'حضور' ? Icons.login : Icons.logout,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          state.message,
-                          style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                  backgroundColor: state.type == 'حضور'
-                      ? ColorPalette.successColor
-                      : ColorPalette.infoColor,
-                  duration: const Duration(seconds: 3),
-                ),
-              );
-              // إخلاء مربع البحث وإعادة تركيز الباركود
-              _scanFocusNode.requestFocus();
+              AwesomeDialog(
+                context: context,
+                dialogType: DialogType.success,
+                animType: AnimType.scale,
+                title: state.type == 'حضور' ? 'تم تسجيل الدخول' : 'تم تسجيل الخروج',
+                desc: state.message,
+                descTextStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
+                titleTextStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
+                autoHide: const Duration(seconds: 3),
+                onDismissCallback: (type) {
+                  _scanFocusNode.requestFocus();
+                },
+              ).show();
             } else if (state is AttendanceError) {
               if (state.message.contains('منتهي') || state.message.contains('منتهية')) {
                 AudioService.playAlertSound();
               }
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: Colors.white),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          state.message,
-                          style: const TextStyle(fontFamily: 'Cairo', fontSize: 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                  backgroundColor: ColorPalette.errorColor,
-                  duration: const Duration(seconds: 4),
-                ),
-              );
-              _scanFocusNode.requestFocus();
+              AwesomeDialog(
+                context: context,
+                dialogType: DialogType.error,
+                animType: AnimType.scale,
+                title: 'تنبيه',
+                desc: state.message,
+                descTextStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: Colors.red),
+                titleTextStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
+                btnOkOnPress: () {},
+                btnOkColor: Colors.red,
+                btnOkText: 'حسناً',
+                onDismissCallback: (type) {
+                  _scanFocusNode.requestFocus();
+                },
+              ).show();
             }
           },
           builder: (context, state) {

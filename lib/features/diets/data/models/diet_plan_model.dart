@@ -7,6 +7,7 @@ class DietPlanModel extends DietPlan {
     super.description,
     required super.meals,
     super.notes,
+    super.price = 0.0,
     required super.createdAt,
   });
 
@@ -17,6 +18,7 @@ class DietPlanModel extends DietPlan {
       description: json['description'],
       meals: json['meals'],
       notes: json['notes'],
+      price: json['price'] != null ? (json['price'] as num).toDouble() : 0.0,
       createdAt: DateTime.parse(json['createdAt']),
     );
   }
@@ -28,6 +30,7 @@ class DietPlanModel extends DietPlan {
       'description': description,
       'meals': meals,
       'notes': notes,
+      'price': price,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -39,6 +42,7 @@ class DietPlanModel extends DietPlan {
       description: entity.description,
       meals: entity.meals,
       notes: entity.notes,
+      price: entity.price,
       createdAt: entity.createdAt,
     );
   }

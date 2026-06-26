@@ -26,7 +26,7 @@ class _AddTrainerDialogState extends State<AddTrainerDialog> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _specCtrl;
-  late final TextEditingController _salaryCtrl;
+  late final TextEditingController _priceCtrl;
   late final TextEditingController _hoursCtrl;
   late final TextEditingController _notesCtrl;
 
@@ -42,8 +42,8 @@ class _AddTrainerDialogState extends State<AddTrainerDialog> {
     _nameCtrl = TextEditingController(text: t?.fullName ?? '');
     _phoneCtrl = TextEditingController(text: t?.phoneNumber ?? '');
     _specCtrl = TextEditingController(text: t?.specialization ?? '');
-    _salaryCtrl = TextEditingController(
-      text: t?.salary != null ? t!.salary!.toStringAsFixed(0) : '',
+    _priceCtrl = TextEditingController(
+      text: t?.price != null ? t!.price!.toStringAsFixed(0) : '',
     );
     _hoursCtrl = TextEditingController(text: t?.workingHours ?? '');
     _notesCtrl = TextEditingController(text: t?.notes ?? '');
@@ -56,7 +56,7 @@ class _AddTrainerDialogState extends State<AddTrainerDialog> {
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
     _specCtrl.dispose();
-    _salaryCtrl.dispose();
+    _priceCtrl.dispose();
     _hoursCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
@@ -70,8 +70,8 @@ class _AddTrainerDialogState extends State<AddTrainerDialog> {
       fullName: _nameCtrl.text.trim(),
       phoneNumber: _phoneCtrl.text.trim(),
       specialization: _specCtrl.text.trim().isEmpty ? null : _specCtrl.text.trim(),
-      salary: _salaryCtrl.text.trim().isNotEmpty
-          ? double.tryParse(_salaryCtrl.text.trim())
+      price: _priceCtrl.text.trim().isNotEmpty
+          ? double.tryParse(_priceCtrl.text.trim())
           : null,
       workingHours: _hoursCtrl.text.trim().isEmpty ? null : _hoursCtrl.text.trim(),
       notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
@@ -147,7 +147,7 @@ class _AddTrainerDialogState extends State<AddTrainerDialog> {
                   ),
                   const SizedBox(height: 16),
 
-                  // التخصص والراتب
+                  // التخصص والسعر
                   Row(
                     children: [
                       Expanded(
@@ -161,8 +161,8 @@ class _AddTrainerDialogState extends State<AddTrainerDialog> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: _buildTextField(
-                          controller: _salaryCtrl,
-                          label: 'الراتب',
+                          controller: _priceCtrl,
+                          label: 'السعر',
                           icon: Icons.monetization_on_outlined,
                           keyboardType: TextInputType.number,
                           inputFormatters: [FilteringTextInputFormatter.digitsOnly],

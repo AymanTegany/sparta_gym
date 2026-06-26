@@ -18,7 +18,7 @@ class _ExpensesPageState extends State<ExpensesPage> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ExpensesCubit>().loadExpenses();
     });
@@ -57,6 +57,7 @@ class _ExpensesPageState extends State<ExpensesPage> with SingleTickerProviderSt
                     Tab(text: 'الكهرباء والمرافق', icon: Icon(Icons.bolt_outlined)),
                     Tab(text: 'الرواتب', icon: Icon(Icons.payments_outlined)),
                     Tab(text: 'المعدات والصيانة', icon: Icon(Icons.build_outlined)),
+                    Tab(text: 'المصروفات اليومية', icon: Icon(Icons.receipt_long_outlined)),
                   ],
                 ),
               ),
@@ -68,6 +69,7 @@ class _ExpensesPageState extends State<ExpensesPage> with SingleTickerProviderSt
                     _buildExpenseSection('كهرباء', Icons.bolt_outlined, state),
                     _buildExpenseSection('رواتب', Icons.payments_outlined, state),
                     _buildExpenseSection('معدات', Icons.build_outlined, state),
+                    _buildExpenseSection('مصروفات يومية', Icons.receipt_long_outlined, state),
                   ],
                 ),
               ),

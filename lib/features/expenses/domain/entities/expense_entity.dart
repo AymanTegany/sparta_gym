@@ -1,7 +1,7 @@
 class Expense {
   final int? id;
   final String title;
-  final String category; // إيجار, كهرباء, رواتب, معدات
+  final String category; // إيجار, كهرباء, رواتب, معدات, مصروفات يومية
   final double amount;
   final String date;
   final String? notes;

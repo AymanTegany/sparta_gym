@@ -17,6 +17,7 @@ class _AddDietPlanDialogState extends State<AddDietPlanDialog> {
   late TextEditingController _descriptionController;
   late TextEditingController _mealsController;
   late TextEditingController _notesController;
+  late TextEditingController _priceController;
 
   @override
   void initState() {
@@ -25,6 +26,7 @@ class _AddDietPlanDialogState extends State<AddDietPlanDialog> {
     _descriptionController = TextEditingController(text: widget.dietPlan?.description ?? '');
     _mealsController = TextEditingController(text: widget.dietPlan?.meals ?? '');
     _notesController = TextEditingController(text: widget.dietPlan?.notes ?? '');
+    _priceController = TextEditingController(text: widget.dietPlan != null && widget.dietPlan!.price > 0 ? widget.dietPlan!.price.toStringAsFixed(0) : '');
   }
 
   @override
@@ -33,6 +35,7 @@ class _AddDietPlanDialogState extends State<AddDietPlanDialog> {
     _descriptionController.dispose();
     _mealsController.dispose();
     _notesController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
@@ -44,6 +47,7 @@ class _AddDietPlanDialogState extends State<AddDietPlanDialog> {
         description: _descriptionController.text.trim(),
         meals: _mealsController.text.trim(),
         notes: _notesController.text.trim(),
+        price: double.tryParse(_priceController.text.trim()) ?? 0.0,
         createdAt: widget.dietPlan?.createdAt ?? DateTime.now(),
       );
       Navigator.pop(context, newDietPlan);
@@ -112,6 +116,16 @@ class _AddDietPlanDialogState extends State<AddDietPlanDialog> {
                   alignLabelWithHint: true,
                 ),
                 maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _priceController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'سعر النظام (اختياري)',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.attach_money),
+                ),
               ),
               const SizedBox(height: 24),
               Row(

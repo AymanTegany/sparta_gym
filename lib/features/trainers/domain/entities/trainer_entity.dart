@@ -6,7 +6,7 @@ class Trainer extends Equatable {
   final String fullName;        // اسم المدرب
   final String phoneNumber;     // رقم الهاتف
   final String? specialization; // التخصص (لياقة، كمال أجسام، كارديو، إلخ)
-  final double? salary;         // الراتب
+  final double? price;         // السعر
   final String? workingHours;   // ساعات العمل
   final String? notes;          // ملاحظات
   final bool isActive;          // حالة المدرب (نشط / غير نشط)
@@ -17,7 +17,7 @@ class Trainer extends Equatable {
     required this.fullName,
     required this.phoneNumber,
     this.specialization,
-    this.salary,
+    this.price,
     this.workingHours,
     this.notes,
     required this.isActive,
@@ -30,7 +30,7 @@ class Trainer extends Equatable {
         fullName,
         phoneNumber,
         specialization,
-        salary,
+        price,
         workingHours,
         notes,
         isActive,

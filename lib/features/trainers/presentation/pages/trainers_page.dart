@@ -211,7 +211,7 @@ class _TrainersPageState extends State<TrainersPage> {
                                   DataColumn(label: Text('اسم المدرب', style: TextStyle(fontWeight: FontWeight.bold))),
                                   DataColumn(label: Text('رقم الهاتف', style: TextStyle(fontWeight: FontWeight.bold))),
                                   DataColumn(label: Text('التخصص', style: TextStyle(fontWeight: FontWeight.bold))),
-                                  DataColumn(label: Text('الراتب', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  DataColumn(label: Text('السعر', style: TextStyle(fontWeight: FontWeight.bold))),
                                   DataColumn(label: Text('ساعات العمل', style: TextStyle(fontWeight: FontWeight.bold))),
                                   DataColumn(label: Text('الحالة', style: TextStyle(fontWeight: FontWeight.bold))),
                                   DataColumn(label: Text('تاريخ الإضافة', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -241,12 +241,12 @@ class _TrainersPageState extends State<TrainersPage> {
                                       DataCell(Text(trainer.phoneNumber)),
                                       // التخصص
                                       DataCell(Text(trainer.specialization ?? '—')),
-                                      // الراتب
-                                      DataCell(Text(
-                                        trainer.salary != null
-                                            ? '${_formatCurrency(trainer.salary!)} ج.م'
-                                            : '—',
-                                      )),
+                                      // السعر
+                                      DataCell(
+                                        trainer.price != null
+                                            ? Text('${_formatCurrency(trainer.price!)} ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green))
+                                            : const Text('-'),
+                                      ),
                                       // ساعات العمل
                                       DataCell(Text(trainer.workingHours ?? '—')),
                                       // الحالة

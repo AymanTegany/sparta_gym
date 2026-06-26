@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart' hide TextDirection;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/color_palette.dart';
 import '../../../../core/common/widgets/sidebar_layout.dart';
@@ -56,7 +58,7 @@ class _MembersPageState extends State<MembersPage> {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AddMemberDialog(
-        onSave: (newMember, paymentMethod, {bool printInvoice = false}) async {
+        onSave: (newMember, paymentMethod, {bool printInvoice = false, bool shareWhatsapp = false}) async {
           // الحصول على اسم الموظف الحالي
           String employeeName = 'موظف';
           final authState = context.read<AuthCubit>().state;
@@ -94,6 +96,34 @@ class _MembersPageState extends State<MembersPage> {
           if (printInvoice && context.mounted) {
             await printMemberA4Invoice(context, newMember);
           }
+
+          if (shareWhatsapp && newMember.phoneNumber != null && newMember.phoneNumber!.isNotEmpty) {
+            final startDateStr = DateFormat('yyyy/MM/dd').format(DateTime.parse(newMember.startDate));
+            final endDateStr = DateFormat('yyyy/MM/dd').format(DateTime.parse(newMember.endDate));
+            final text = '''مرحباً ${newMember.fullName}،
+تم تسجيل اشتراكك بنجاح في Sparta Gym 💪
+
+📌 تفاصيل الاشتراك:
+- الباقة: ${newMember.membershipType}
+- تاريخ البدء: $startDateStr
+- تاريخ الانتهاء: $endDateStr
+- إجمالي السعر: ${newMember.membershipPrice} ج.م
+- المدفوع: ${newMember.paidAmount} ج.م
+- المتبقي: ${newMember.remainingAmount} ج.م
+
+نتمنى لك وقتاً ممتعاً وتدريباً مثمراً! 🏋️‍♂️''';
+
+            String phone = newMember.phoneNumber!;
+            phone = phone.replaceAll(RegExp(r'\D'), '');
+            if (phone.startsWith('0')) {
+              phone = '2$phone'; // Assuming Egypt country code
+            }
+
+            final url = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(text)}');
+            if (await canLaunchUrl(url)) {
+              await launchUrl(url, mode: LaunchMode.externalApplication);
+            }
+          }
         },
       ),
     );
@@ -106,7 +136,7 @@ class _MembersPageState extends State<MembersPage> {
       barrierDismissible: false,
       builder: (dialogContext) => AddMemberDialog(
         member: member,
-        onSave: (updatedMember, paymentMethod, {bool printInvoice = false}) {
+        onSave: (updatedMember, paymentMethod, {bool printInvoice = false, bool shareWhatsapp = false}) {
           context.read<MembersCubit>().updateMember(updatedMember);
         },
       ),

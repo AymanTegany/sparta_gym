@@ -27,7 +27,7 @@ class AddMemberDialog extends StatefulWidget {
   final Member? member;
 
   /// دالة الحفظ تُستدعى بكائن [Member] الجديد أو المعدّل وطريقة الدفع
-  final Function(Member member, String paymentMethod, {bool printInvoice}) onSave;
+  final Function(Member member, String paymentMethod, {bool printInvoice, bool shareWhatsapp}) onSave;
 
   const AddMemberDialog({
     super.key,
@@ -213,14 +213,43 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   void _selectMembership(Membership m) {
     setState(() {
       _membershipType = m.name;
-      _priceCtrl.text = m.price.toStringAsFixed(0);
       
       if (_startDate != null) {
         _endDate = _startDate!.add(Duration(days: m.durationDays));
         _endDateCtrl.text = DateFormat('yyyy/MM/dd').format(_endDate!);
       }
-      _calculateRemaining();
+      _updateTotalPrice();
     });
+  }
+
+  void _updateTotalPrice() {
+    if (_memberships.isEmpty) return;
+    
+    final m = _memberships.firstWhere(
+      (element) => element.name == _membershipType,
+      orElse: () => _memberships.first,
+    );
+    
+    double total = m.price;
+    
+    if (_selectedTrainerName != null) {
+      final t = _trainers.firstWhere(
+        (t) => t.fullName == _selectedTrainerName,
+        orElse: () => const Trainer(fullName: '', phoneNumber: '', isActive: false, createdAt: ''),
+      );
+      if (t.price != null) total += t.price!;
+    }
+    
+    if (_selectedDietPlanId != null) {
+      final d = _dietPlans.firstWhere(
+        (d) => d.id == _selectedDietPlanId,
+        orElse: () => DietPlan(name: '', meals: '', createdAt: DateTime.now()),
+      );
+      total += d.price;
+    }
+    
+    _priceCtrl.text = total.toStringAsFixed(0);
+    _calculateRemaining();
   }
 
   @override
@@ -273,7 +302,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   }
 
   /// حفظ بيانات العميل
-  void _save({bool printInvoice = false}) {
+  void _save({bool printInvoice = false, bool shareWhatsapp = false}) {
     if (!_formKey.currentState!.validate()) return;
 
     final now = DateTime.now();
@@ -309,7 +338,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           widget.member?.createdAt ?? now.toIso8601String(),
     );
 
-    widget.onSave(member, _paymentMethod, printInvoice: printInvoice);
+    widget.onSave(member, _paymentMethod, printInvoice: printInvoice, shareWhatsapp: shareWhatsapp);
     Navigator.of(context).pop();
   }
 
@@ -740,6 +769,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                         onChanged: (v) {
                           setState(() {
                             _selectedTrainerName = v;
+                            _updateTotalPrice();
                           });
                         },
                       ),
@@ -772,6 +802,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                         onChanged: (v) {
                           setState(() {
                             _selectedDietPlanId = v;
+                            _updateTotalPrice();
                           });
                         },
                       ),
@@ -863,6 +894,21 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
               label: const Text('حفظ وطباعة'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: ColorPalette.secondaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 2,
+              ),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: () => _save(shareWhatsapp: true),
+              icon: const Icon(Icons.share, size: 18),
+              label: const Text('مشاركة واتساب'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 shape: RoundedRectangleBorder(

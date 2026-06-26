@@ -107,6 +107,12 @@ import 'features/diets/domain/usecases/get_diet_plans.dart';
 import 'features/diets/domain/usecases/update_diet_plan.dart';
 import 'features/diets/presentation/cubit/diet_plans_cubit.dart';
 
+// Reports Feature Imports
+import 'features/reports/data/datasources/reports_local_data_source.dart';
+import 'features/reports/data/repositories/reports_repository_impl.dart';
+import 'features/reports/domain/repositories/reports_repository.dart';
+import 'features/reports/presentation/cubit/reports_cubit.dart';
+
 final serviceLocator = GetIt.instance;
 
 /// تهيئة وحقن جميع التبعيات الخاصة بالتطبيق (Dependency Injection).
@@ -142,6 +148,7 @@ Future<void> initDependencies() async {
   _initInventory();
   _initPos();
   _initDiets();
+  _initReports();
 }
 
 /// تهيئة ميزة المصادقة والترخيص
@@ -465,5 +472,23 @@ void _initDiets() {
       updateDietPlan: serviceLocator(),
       deleteDietPlan: serviceLocator(),
     ),
+  );
+}
+
+/// تهيئة ميزة التقارير اليومية
+void _initReports() {
+  // 1. Datasource
+  serviceLocator.registerLazySingleton<ReportsLocalDataSource>(
+    () => ReportsLocalDataSourceImpl(databaseHelper: serviceLocator()),
+  );
+
+  // 2. Repository
+  serviceLocator.registerLazySingleton<ReportsRepository>(
+    () => ReportsRepositoryImpl(localDataSource: serviceLocator()),
+  );
+
+  // 3. Cubit
+  serviceLocator.registerFactory<ReportsCubit>(
+    () => ReportsCubit(repository: serviceLocator()),
   );
 }

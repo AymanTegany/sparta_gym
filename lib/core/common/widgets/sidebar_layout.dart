@@ -17,6 +17,7 @@ import '../../../features/expenses/presentation/pages/expenses_page.dart';
 import '../../../features/inventory/presentation/pages/inventory_page.dart';
 import '../../../features/pos/presentation/pages/pos_page.dart';
 import '../../../features/diets/presentation/pages/diet_plans_page.dart';
+import '../../../features/reports/presentation/pages/reports_page.dart';
 import '../../../init_dependencies.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
@@ -111,6 +112,9 @@ class _SidebarLayoutState extends State<SidebarLayout> {
         break;
       case 'diets':
         targetPage = const DietPlansPage();
+        break;
+      case 'reports':
+        targetPage = const ReportsPage();
         break;
       default:
         return;
@@ -398,6 +402,13 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                   page: 'diets',
                   theme: theme,
                 ),
+                _buildNavItem(
+                  context: context,
+                  icon: Icons.analytics_rounded,
+                  title: 'التقارير اليومية',
+                  page: 'reports',
+                  theme: theme,
+                ),
               ],
             ),
           ),
@@ -638,6 +649,12 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                             title: const Text('الأنظمة الغذائية'),
                             selected: widget.activePage == 'diets',
                             onTap: () => _navigateTo(context, 'diets'),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.analytics_rounded),
+                            title: const Text('التقارير اليومية'),
+                            selected: widget.activePage == 'reports',
+                            onTap: () => _navigateTo(context, 'reports'),
                           ),
                         ],
                       ),

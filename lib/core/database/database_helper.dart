@@ -18,7 +18,7 @@ class DatabaseHelper {
   // ==========================================
   // 2. إعدادات قاعدة البيانات
   // ==========================================
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
   static const String _databaseName = 'sparta_gym.db';
 
   // ==========================================
@@ -42,6 +42,7 @@ class DatabaseHelper {
       options: OpenDatabaseOptions(
         version: _databaseVersion,
         onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
       ),
     );
   }
@@ -55,6 +56,19 @@ class DatabaseHelper {
     await _createAllTables(db);
     await _createAllIndexes(db);
     await _insertDefaultInitialData(db);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add price to diet_plans
+      await db.execute('ALTER TABLE diet_plans ADD COLUMN price REAL NOT NULL DEFAULT 0');
+      // Rename salary to price in trainers, or add if rename not supported.
+      try {
+        await db.execute('ALTER TABLE trainers RENAME COLUMN salary TO price');
+      } catch (e) {
+        await db.execute('ALTER TABLE trainers ADD COLUMN price REAL DEFAULT 0');
+      }
+    }
   }
 
   /// دالة مساعدة لإنشاء جميع الجداول
@@ -122,7 +136,7 @@ class DatabaseHelper {
         fullName TEXT NOT NULL,
         phoneNumber TEXT NOT NULL DEFAULT '',
         specialization TEXT,
-        salary REAL,
+        price REAL,
         workingHours TEXT,
         notes TEXT,
         isActive INTEGER NOT NULL DEFAULT 1,
@@ -165,6 +179,7 @@ class DatabaseHelper {
         description TEXT,
         meals TEXT NOT NULL,
         notes TEXT,
+        price REAL NOT NULL DEFAULT 0,
         createdAt TEXT NOT NULL
       )
     ''');
@@ -267,6 +282,7 @@ class DatabaseHelper {
         'description': 'نظام غذائي غني بالسعرات الحرارية والبروتين لزيادة الكتلة العضلية.',
         'meals': 'وجبة 1: شوفان وبيض وموز.\\nوجبة 2: دجاج وأرز وخضروات.\\nوجبة 3: لحم وبطاطس.\\nوجبة 4: تونة وسلطة.',
         'notes': 'تأكد من شرب 3-4 لتر ماء يومياً.',
+        'price': 0.0,
         'createdAt': nowStr,
       },
       {
@@ -274,6 +290,7 @@ class DatabaseHelper {
         'description': 'نظام غذائي قليل الكربوهيدرات لحرق الدهون مع الحفاظ على العضلات.',
         'meals': 'وجبة 1: بياض البيض وسبانخ.\\nوجبة 2: صدر دجاج مشوي مع بروكلي.\\nوجبة 3: سمك مشوي وسلطة خضراء.\\nوجبة 4: جبن قريش.',
         'notes': 'يُفضل ممارسة الكارديو بعد التمرين أو على معدة فارغة.',
+        'price': 0.0,
         'createdAt': nowStr,
       },
       {
@@ -281,6 +298,7 @@ class DatabaseHelper {
         'description': 'نظام غذائي متوازن للحفاظ على الوزن الحالي واللياقة.',
         'meals': 'وجبة 1: بيض كامل وتوست أسمر.\\nوجبة 2: لحم أو دجاج مع أرز وسلطة.\\nوجبة 3: فواكه ومكسرات.\\nوجبة 4: زبادي يوناني وتونة.',
         'notes': 'يمكن أخذ وجبة مفتوحة (Cheat Meal) مرة في الأسبوع.',
+        'price': 0.0,
         'createdAt': nowStr,
       }
     ];

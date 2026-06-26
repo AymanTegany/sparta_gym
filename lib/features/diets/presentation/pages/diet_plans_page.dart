@@ -134,9 +134,19 @@ class _DietPlansPageState extends State<DietPlansPage> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Expanded(
-                                        child: Text(
-                                          dietPlan.name,
-                                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: ColorPalette.primaryColor),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              dietPlan.name,
+                                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: ColorPalette.primaryColor),
+                                            ),
+                                            if (dietPlan.price > 0)
+                                              Text(
+                                                'السعر: ${dietPlan.price.toStringAsFixed(0)} ج.م',
+                                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
+                                              ),
+                                          ],
                                         ),
                                       ),
                                       Row(

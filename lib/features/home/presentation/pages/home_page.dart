@@ -67,7 +67,7 @@ class _HomePageState extends State<HomePage> {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AddMemberDialog(
-        onSave: (newMember, paymentMethod, {bool printInvoice = false}) async {
+        onSave: (newMember, paymentMethod, {bool printInvoice = false, bool shareWhatsapp = false}) async {
           // الحصول على اسم الموظف الحالي
           String employeeName = 'موظف';
           final authState = context.read<AuthCubit>().state;
@@ -181,7 +181,7 @@ class _HomePageState extends State<HomePage> {
       barrierDismissible: false,
       builder: (dialogContext) => AddMemberDialog(
         member: member,
-        onSave: (updatedMember, paymentMethod, {bool printInvoice = false}) {
+        onSave: (updatedMember, paymentMethod, {bool printInvoice = false, bool shareWhatsapp = false}) {
           context.read<MembersCubit>().updateMember(updatedMember);
         },
       ),
