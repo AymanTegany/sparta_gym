@@ -71,9 +71,9 @@ class QuickActionsSection extends StatelessWidget {
           _buildQuickActionBtn(
             icon: Icons.check_circle_rounded,
             label: 'تسجيل حضور',
-            color: isDarkMode
-                ? ColorPalette.secondaryColorDarkMode
-                : ColorPalette.secondaryColor,
+            color: 
+                 ColorPalette.primaryColor,
+               
             onPressed: onAttendance,
           ),
         ],

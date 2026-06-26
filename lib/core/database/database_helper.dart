@@ -61,12 +61,29 @@ class DatabaseHelper {
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       // Add price to diet_plans
-      await db.execute('ALTER TABLE diet_plans ADD COLUMN price REAL NOT NULL DEFAULT 0');
+      try {
+        await db.execute('ALTER TABLE diet_plans ADD COLUMN price REAL NOT NULL DEFAULT 0');
+      } catch (e) {
+        if (!e.toString().contains('duplicate column name')) {
+          rethrow;
+        }
+      }
+
       // Rename salary to price in trainers, or add if rename not supported.
       try {
         await db.execute('ALTER TABLE trainers RENAME COLUMN salary TO price');
       } catch (e) {
-        await db.execute('ALTER TABLE trainers ADD COLUMN price REAL DEFAULT 0');
+        if (e.toString().contains('no such column')) {
+           // Ignore if already renamed
+        } else {
+           try {
+             await db.execute('ALTER TABLE trainers ADD COLUMN price REAL DEFAULT 0');
+           } catch (e2) {
+             if (!e2.toString().contains('duplicate column name')) {
+                rethrow;
+             }
+           }
+        }
       }
     }
   }

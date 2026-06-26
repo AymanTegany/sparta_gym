@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -5,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/color_palette.dart';
 import '../../domain/entities/payment_entity.dart';
@@ -199,6 +202,60 @@ class ReceiptDialog extends StatelessWidget {
     );
   }
 
+  Future<void> _shareWhatsapp(BuildContext context, GymSettings settings) async {
+    final phone = payment.memberPhone;
+    if (phone == null || phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('عفواً، لا يوجد رقم هاتف مسجل لهذا العميل.', style: TextStyle(fontFamily: 'Cairo')),
+          backgroundColor: ColorPalette.errorColor,
+        ),
+      );
+      return;
+    }
+
+    final formattedDate = _formatDate(payment.paymentDate);
+    final formattedAmount = _formatCurrency(payment.amount);
+
+    final text = '''مرحباً ${payment.memberName ?? 'عميلنا العزيز'}،
+تم استلام الدفعة بنجاح في ${settings.gymName} 💪
+
+📌 تفاصيل الدفعة:
+- رقم الإيصال: ${payment.receiptId}
+- المبلغ المدفوع: $formattedAmount ج.م
+- طريقة الدفع: ${payment.paymentMethod}
+- التاريخ: $formattedDate
+${payment.notes != null ? '- ملاحظات: ${payment.notes}\n' : ''}
+نتمنى لك وقتاً ممتعاً وتدريباً مثمراً! 🏋️‍♂️''';
+
+    String cleanedPhone = phone.replaceAll(RegExp(r'\D'), '');
+    if (cleanedPhone.startsWith('0')) {
+      cleanedPhone = '2$cleanedPhone';
+    }
+
+    final String encodedText = Uri.encodeComponent(text);
+    
+    Uri url;
+    if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+      url = Uri.parse('https://web.whatsapp.com/send?phone=$cleanedPhone&text=$encodedText');
+    } else {
+      url = Uri.parse('https://wa.me/$cleanedPhone?text=$encodedText');
+    }
+
+    try {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تعذر فتح واتساب. يرجى التأكد من التثبيت أو وجود إنترنت.', style: const TextStyle(fontFamily: 'Cairo')),
+            backgroundColor: ColorPalette.errorColor,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -370,21 +427,38 @@ class ReceiptDialog extends StatelessWidget {
                     child: Row(
                       children: [
                         Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('إغلاق'),
+                          child: ElevatedButton.icon(
+                            onPressed: () => _shareWhatsapp(context, settings),
+                            icon: const Icon(Icons.share, color: Colors.white, size: 18),
+                            label: const Text('إرسال واتساب'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () => _printReceipt(context, settings),
-                            icon: const Icon(Icons.print, color: Colors.white),
-                            label: const Text('طباعة الإيصال'),
+                            icon: const Icon(Icons.print, color: Colors.white, size: 18),
+                            label: const Text('طباعة'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: ColorPalette.primaryColor,
                               foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text('إغلاق'),
                           ),
                         ),
                       ],

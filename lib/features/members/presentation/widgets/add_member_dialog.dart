@@ -233,7 +233,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     double total = m.price;
     
     if (_selectedTrainerName != null) {
-      final t = _trainers.firstWhere(
+      final t = _trainers.cast<Trainer>().firstWhere(
         (t) => t.fullName == _selectedTrainerName,
         orElse: () => const Trainer(fullName: '', phoneNumber: '', isActive: false, createdAt: ''),
       );
@@ -241,15 +241,20 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     }
     
     if (_selectedDietPlanId != null) {
-      final d = _dietPlans.firstWhere(
+      final d = _dietPlans.cast<DietPlan>().firstWhere(
         (d) => d.id == _selectedDietPlanId,
         orElse: () => DietPlan(name: '', meals: '', createdAt: DateTime.now()),
       );
       total += d.price;
     }
     
-    _priceCtrl.text = total.toStringAsFixed(0);
-    _calculateRemaining();
+    // تأخير التحديث لتجنب تعارض الـ setState مع Dropdown listeners
+    Future.microtask(() {
+      if (mounted) {
+        _priceCtrl.text = total.toStringAsFixed(0);
+        _calculateRemaining();
+      }
+    });
   }
 
   @override
@@ -704,7 +709,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                       setState(() {
                         _startDate = picked;
                         _startDateCtrl.text = DateFormat('yyyy/MM/dd').format(picked);
-                        final currentM = _memberships.firstWhere(
+                        final currentM = _memberships.cast<Membership>().firstWhere(
                           (m) => m.name == _membershipType,
                           orElse: () => const Membership(name: '', durationDays: 30, price: 0, freezeDays: 0, isActive: false, createdAt: ''),
                         );

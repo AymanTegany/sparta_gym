@@ -75,9 +75,7 @@ void main() async {
         BlocProvider<InventoryCubit>(
           create: (_) => serviceLocator<InventoryCubit>(),
         ),
-        BlocProvider<PosCubit>(
-          create: (_) => serviceLocator<PosCubit>(),
-        ),
+        BlocProvider<PosCubit>(create: (_) => serviceLocator<PosCubit>()),
         BlocProvider<ReportsCubit>(
           create: (_) => serviceLocator<ReportsCubit>(),
         ),
@@ -119,9 +117,7 @@ class SpartaGymApp extends StatelessWidget {
             builder: (context, state) {
               if (state is AuthInitial || state is AuthLoading) {
                 return const Scaffold(
-                  body: Center(
-                    child: CircularProgressIndicator(),
-                  ),
+                  body: Center(child: CircularProgressIndicator()),
                 );
               }
 

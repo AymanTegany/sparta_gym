@@ -5,22 +5,25 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/color_palette.dart';
 import '../../../../core/common/widgets/sidebar_layout.dart';
+import '../../../../init_dependencies.dart';
 import '../../domain/entities/member_entity.dart';
 import '../cubit/members_cubit.dart';
 import '../cubit/members_state.dart';
 import '../widgets/add_member_dialog.dart';
-import '../../../payments/presentation/widgets/add_payment_dialog.dart';
-import '../widgets/member_card_print.dart';
 import '../widgets/member_details_dialog.dart';
+import '../widgets/renew_subscription_dialog.dart';
+import '../../../payments/presentation/cubit/payments_cubit.dart';
+import '../../../payments/domain/entities/payment_entity.dart';
+import '../../../payments/presentation/widgets/receipt_dialog.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../auth/presentation/cubit/auth_state.dart';
 import '../widgets/members_data_table.dart';
 import '../widgets/members_filter_bar.dart';
 import '../widgets/members_stats_cards.dart';
-import '../widgets/renew_subscription_dialog.dart';
 import '../widgets/print_member_invoice.dart';
+import '../../../payments/presentation/widgets/add_payment_dialog.dart';
+import '../widgets/member_card_print.dart';
 import '../../../diets/presentation/cubit/diet_plans_cubit.dart';
-import '../../../payments/presentation/cubit/payments_cubit.dart';
-import '../../../auth/presentation/cubit/auth_cubit.dart';
-import '../../../auth/presentation/cubit/auth_state.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// شاشة إدارة العملاء (Members Management Page)
@@ -80,8 +83,9 @@ class _MembersPageState extends State<MembersPage> {
               );
 
           // 2. إذا نجح الحفظ وكان هناك مبلغ مدفوع، نسجل الدفعة لإنشاء إيصال وتحديث الأرصدة
+          Payment? generatedPayment;
           if (success && newMember.paidAmount > 0) {
-            await context.read<PaymentsCubit>().recordPayment(
+            generatedPayment = await context.read<PaymentsCubit>().recordPayment(
               memberId: newMember.memberId,
               amount: newMember.paidAmount,
               paymentMethod: paymentMethod,
@@ -93,37 +97,42 @@ class _MembersPageState extends State<MembersPage> {
             }
           }
 
+          if (shareWhatsapp && context.mounted) {
+            // إنشاء كائن Payment للمعاينة حتى لو لم يكن هناك مدفوعات
+            final paymentToShare = generatedPayment ?? Payment(
+              receiptId: 'REC-${DateTime.now().millisecondsSinceEpoch}',
+              memberId: newMember.memberId,
+              memberName: newMember.fullName,
+              memberPhone: newMember.phoneNumber,
+              amount: newMember.paidAmount,
+              paymentMethod: paymentMethod,
+              paymentDate: DateTime.now().toIso8601String(),
+              employeeName: employeeName,
+              notes: 'اشتراك باقة ${newMember.membershipType}',
+            );
+            // لضمان وجود البيانات في المعاينة (الاسم ورقم الهاتف)
+            final previewPayment = Payment(
+              id: paymentToShare.id,
+              receiptId: paymentToShare.receiptId,
+              memberId: paymentToShare.memberId,
+              memberName: paymentToShare.memberName ?? newMember.fullName,
+              memberPhone: paymentToShare.memberPhone ?? newMember.phoneNumber,
+              amount: paymentToShare.amount,
+              paymentMethod: paymentToShare.paymentMethod,
+              paymentDate: paymentToShare.paymentDate,
+              employeeName: paymentToShare.employeeName,
+              notes: paymentToShare.notes,
+            );
+            showDialog(
+              context: context,
+              builder: (_) => ReceiptDialog(payment: previewPayment),
+            );
+          }
+
           if (printInvoice && context.mounted) {
             await printMemberA4Invoice(context, newMember);
           }
 
-          if (shareWhatsapp && newMember.phoneNumber != null && newMember.phoneNumber!.isNotEmpty) {
-            final startDateStr = DateFormat('yyyy/MM/dd').format(DateTime.parse(newMember.startDate));
-            final endDateStr = DateFormat('yyyy/MM/dd').format(DateTime.parse(newMember.endDate));
-            final text = '''مرحباً ${newMember.fullName}،
-تم تسجيل اشتراكك بنجاح في Sparta Gym 💪
-
-📌 تفاصيل الاشتراك:
-- الباقة: ${newMember.membershipType}
-- تاريخ البدء: $startDateStr
-- تاريخ الانتهاء: $endDateStr
-- إجمالي السعر: ${newMember.membershipPrice} ج.م
-- المدفوع: ${newMember.paidAmount} ج.م
-- المتبقي: ${newMember.remainingAmount} ج.م
-
-نتمنى لك وقتاً ممتعاً وتدريباً مثمراً! 🏋️‍♂️''';
-
-            String phone = newMember.phoneNumber!;
-            phone = phone.replaceAll(RegExp(r'\D'), '');
-            if (phone.startsWith('0')) {
-              phone = '2$phone'; // Assuming Egypt country code
-            }
-
-            final url = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(text)}');
-            if (await canLaunchUrl(url)) {
-              await launchUrl(url, mode: LaunchMode.externalApplication);
-            }
-          }
         },
       ),
     );

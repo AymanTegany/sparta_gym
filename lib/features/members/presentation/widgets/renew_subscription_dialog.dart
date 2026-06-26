@@ -140,7 +140,7 @@ class _RenewSubscriptionDialogState extends State<RenewSubscriptionDialog> {
 
   /// تحديث تاريخ الانتهاء بناءً على نوع الاشتراك وتاريخ البدء
   void _updateEndDate() {
-    final currentM = _memberships.firstWhere(
+    final currentM = _memberships.cast<Membership>().firstWhere(
       (m) => m.name == _membershipType,
       orElse: () => const Membership(name: '', durationDays: 30, price: 0, freezeDays: 0, isActive: false, createdAt: ''),
     );

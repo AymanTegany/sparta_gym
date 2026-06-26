@@ -65,7 +65,7 @@ class PaymentsCubit extends Cubit<PaymentsState> {
   }
 
   /// تسجيل عملية دفع جديدة
-  Future<void> recordPayment({
+  Future<Payment?> recordPayment({
     required String memberId,
     required double amount,
     required String paymentMethod,
@@ -89,10 +89,11 @@ class PaymentsCubit extends Cubit<PaymentsState> {
     );
 
     final result = await _addPayment(payment);
-    await result.fold(
+    return await result.fold(
       (failure) async {
         emit(PaymentsError(failure.message));
         await _fetchDataAndEmit();
+        return null;
       },
       (savedPayment) async {
         emit(PaymentsActionSuccess(
@@ -100,6 +101,7 @@ class PaymentsCubit extends Cubit<PaymentsState> {
           message: 'تم تسجيل الدفعة بنجاح! رقم الإيصال: ${savedPayment.receiptId}',
         ));
         await _fetchDataAndEmit();
+        return savedPayment;
       },
     );
   }

@@ -17,6 +17,7 @@ import '../../../members/presentation/widgets/add_member_dialog.dart';
 import '../../../members/presentation/widgets/renew_subscription_dialog.dart';
 import '../../../members/presentation/widgets/member_details_dialog.dart';
 import '../../../payments/presentation/widgets/add_payment_dialog.dart';
+import '../../../payments/presentation/widgets/receipt_dialog.dart';
 import '../../../members/presentation/cubit/members_cubit.dart';
 import '../../../members/presentation/cubit/members_state.dart';
 import '../../../members/domain/entities/member_entity.dart';
@@ -89,8 +90,9 @@ class _HomePageState extends State<HomePage> {
               );
 
           // 2. إذا نجح الحفظ وكان هناك مبلغ مدفوع، سجل الدفعة
+          Payment? generatedPayment;
           if (success && newMember.paidAmount > 0) {
-            await context.read<PaymentsCubit>().recordPayment(
+            generatedPayment = await context.read<PaymentsCubit>().recordPayment(
               memberId: newMember.memberId,
               amount: newMember.paidAmount,
               paymentMethod: paymentMethod,
@@ -100,6 +102,38 @@ class _HomePageState extends State<HomePage> {
             if (context.mounted) {
               await context.read<MembersCubit>().loadMembers();
             }
+          }
+
+          if (shareWhatsapp && context.mounted) {
+            // إنشاء كائن Payment للمعاينة حتى لو لم يكن هناك مدفوعات
+            final paymentToShare = generatedPayment ?? Payment(
+              receiptId: 'REC-${DateTime.now().millisecondsSinceEpoch}',
+              memberId: newMember.memberId,
+              memberName: newMember.fullName,
+              memberPhone: newMember.phoneNumber,
+              amount: newMember.paidAmount,
+              paymentMethod: paymentMethod,
+              paymentDate: DateTime.now().toIso8601String(),
+              employeeName: employeeName,
+              notes: 'اشتراك باقة ${newMember.membershipType}',
+            );
+            // لضمان وجود البيانات في المعاينة (الاسم ورقم الهاتف)
+            final previewPayment = Payment(
+              id: paymentToShare.id,
+              receiptId: paymentToShare.receiptId,
+              memberId: paymentToShare.memberId,
+              memberName: paymentToShare.memberName ?? newMember.fullName,
+              memberPhone: paymentToShare.memberPhone ?? newMember.phoneNumber,
+              amount: paymentToShare.amount,
+              paymentMethod: paymentToShare.paymentMethod,
+              paymentDate: paymentToShare.paymentDate,
+              employeeName: paymentToShare.employeeName,
+              notes: paymentToShare.notes,
+            );
+            showDialog(
+              context: context,
+              builder: (_) => ReceiptDialog(payment: previewPayment),
+            );
           }
           
           if (printInvoice && context.mounted) {
