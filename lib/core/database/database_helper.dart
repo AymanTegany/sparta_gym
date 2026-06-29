@@ -18,7 +18,7 @@ class DatabaseHelper {
   // ==========================================
   // 2. إعدادات قاعدة البيانات
   // ==========================================
-  static const int _databaseVersion = 2;
+  static const int _databaseVersion = 3;
   static const String _databaseName = 'sparta_gym.db';
 
   // ==========================================
@@ -83,6 +83,24 @@ class DatabaseHelper {
                 rethrow;
              }
            }
+         }
+      }
+    }
+
+    if (oldVersion < 3) {
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS discount_codes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            type TEXT NOT NULL,
+            value REAL NOT NULL,
+            createdAt TEXT NOT NULL
+          )
+        ''');
+      } catch (e) {
+        if (!e.toString().contains('already exists')) {
+          rethrow;
         }
       }
     }
@@ -254,6 +272,17 @@ class DatabaseHelper {
         subtotal REAL NOT NULL,
         FOREIGN KEY(saleId) REFERENCES pos_sales(id) ON DELETE CASCADE,
         FOREIGN KEY(itemId) REFERENCES inventory_items(id) ON DELETE RESTRICT
+      )
+    ''');
+
+    // 12. جدول أكواد الخصم
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS discount_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        type TEXT NOT NULL,
+        value REAL NOT NULL,
+        createdAt TEXT NOT NULL
       )
     ''');
   }

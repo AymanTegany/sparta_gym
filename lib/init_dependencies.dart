@@ -113,6 +113,12 @@ import 'features/reports/data/repositories/reports_repository_impl.dart';
 import 'features/reports/domain/repositories/reports_repository.dart';
 import 'features/reports/presentation/cubit/reports_cubit.dart';
 
+// Discount Codes Imports
+import 'features/discount_codes/data/datasources/discount_codes_local_data_source.dart';
+import 'features/discount_codes/data/repositories/discount_codes_repository_impl.dart';
+import 'features/discount_codes/domain/repositories/discount_codes_repository.dart';
+import 'features/discount_codes/presentation/cubit/discount_codes_cubit.dart';
+
 final serviceLocator = GetIt.instance;
 
 /// تهيئة وحقن جميع التبعيات الخاصة بالتطبيق (Dependency Injection).
@@ -149,6 +155,7 @@ Future<void> initDependencies() async {
   _initPos();
   _initDiets();
   _initReports();
+  _initDiscountCodes();
 }
 
 /// تهيئة ميزة المصادقة والترخيص
@@ -239,6 +246,30 @@ void _initMemberships() {
       addMembership: serviceLocator(),
       updateMembership: serviceLocator(),
       deleteMembership: serviceLocator(),
+    ),
+  );
+}
+
+/// تهيئة ميزة أكواد الخصم
+void _initDiscountCodes() {
+  // 1. Datasources
+  serviceLocator.registerLazySingleton<DiscountCodesLocalDataSource>(
+    () => DiscountCodesLocalDataSourceImpl(
+      databaseHelper: serviceLocator(),
+    ),
+  );
+
+  // 2. Repositories
+  serviceLocator.registerLazySingleton<DiscountCodesRepository>(
+    () => DiscountCodesRepositoryImpl(
+      localDataSource: serviceLocator(),
+    ),
+  );
+
+  // 3. Cubit
+  serviceLocator.registerFactory<DiscountCodesCubit>(
+    () => DiscountCodesCubit(
+      repository: serviceLocator(),
     ),
   );
 }

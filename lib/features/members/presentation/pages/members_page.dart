@@ -290,6 +290,141 @@ class _MembersPageState extends State<MembersPage> {
     );
   }
 
+  /// إرسال تنبيه عبر واتساب
+  Future<void> _sendWhatsAppAlert(Member member) async {
+    if (member.phoneNumber == null || member.phoneNumber!.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('رقم الهاتف غير متوفر للعميل')),
+        );
+      }
+      return;
+    }
+
+    String phone = member.phoneNumber!;
+    // تأكد من أن الرقم يبدأ برمز الدولة، يمكنك تعديل هذا حسب الدولة الافتراضية
+    if (phone.startsWith('0')) {
+      phone = '+20${phone.substring(1)}'; // افتراض أن الدولة مصر
+    } else if (!phone.startsWith('+')) {
+      phone = '+20$phone'; 
+    }
+
+    // تجهيز الرسالة
+    String message = 'أهلاً كابتن ${member.fullName}،\n\n';
+    
+    if (!member.isActive) {
+      message += 'نود تذكيرك بأن اشتراكك في باقة ${member.membershipType} قد انتهى بتاريخ ${_formatDate(member.endDate)}.\n';
+      message += 'نتمنى رؤيتك قريباً في الجيم لتجديد الاشتراك! 💪';
+    } else if (member.isExpiringSoon) {
+      message += 'نود تذكيرك بأن اشتراكك في باقة ${member.membershipType} سينتهي قريباً بتاريخ ${_formatDate(member.endDate)} (متبقي ${member.remainingDays} يوم).\n';
+      message += 'لا تدع اللياقة تتوقف، بادر بتجديد اشتراكك! 🏋️‍♂️';
+    } else if (member.hasDebt) {
+      message += 'نود تذكيرك بوجود مبلغ متبقي على اشتراكك بقيمة ${member.remainingAmount.toStringAsFixed(0)} ج.م.\n';
+      message += 'يرجى تسوية المبلغ في أقرب وقت. شكراً لك! 🙏';
+    } else {
+      message += 'نتمنى لك يوماً رياضياً سعيداً في الجيم! 💪\n\n';
+      message += 'تفاصيل اشتراكك:\n- الباقة: ${member.membershipType}\n- تاريخ الانتهاء: ${_formatDate(member.endDate)}';
+    }
+
+    if (!context.mounted) return;
+
+    final TextEditingController messageController = TextEditingController(text: message);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.chat_rounded, color: Colors.green, size: 28),
+              SizedBox(width: 10),
+              Text(
+                'رسالة واتساب',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 450,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'يمكنك تعديل محتوى الرسالة قبل الإرسال:',
+                  style: TextStyle(
+                    fontSize: 14, 
+                    color: isDark ? Colors.grey[400] : Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: messageController,
+                  maxLines: 8,
+                  minLines: 4,
+                  textDirection: TextDirection.rtl,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: isDark 
+                        ? Colors.black26 
+                        : Colors.grey[50],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                final finalMessage = messageController.text;
+                final url = Uri.parse('https://wa.me/${phone.replaceAll('+', '')}?text=${Uri.encodeComponent(finalMessage)}');
+                
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                } else {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('لا يمكن فتح تطبيق واتساب')),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.send_rounded, size: 18),
+              label: const Text('إرسال الآن'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// تنسيق التاريخ
+  String _formatDate(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      return DateFormat('yyyy/MM/dd').format(date);
+    } catch (_) {
+      return dateStr;
+    }
+  }
+
   /// حساب عدد العناصر لكل نوع فلترة
   Map<MemberFilterType, int> _calculateFilterCounts(List<Member> members) {
     return {
@@ -474,6 +609,7 @@ class _MembersPageState extends State<MembersPage> {
                         onRenew: (m) => _showRenewDialog(context, m),
                         onAddPayment: (m) => _showAddPaymentDialog(context, m),
                         onPrintCard: (m) => _showPrintCardDialog(context, m),
+                        onWhatsAppAlert: (m) => _sendWhatsAppAlert(m),
                       ),
                     ),
                   ),

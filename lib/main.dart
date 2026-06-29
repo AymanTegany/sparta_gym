@@ -22,6 +22,7 @@ import 'features/inventory/presentation/cubit/inventory_cubit.dart';
 import 'features/pos/presentation/cubit/pos_cubit.dart';
 import 'features/diets/presentation/cubit/diet_plans_cubit.dart';
 import 'features/reports/presentation/cubit/reports_cubit.dart';
+import 'features/discount_codes/presentation/cubit/discount_codes_cubit.dart';
 import 'init_dependencies.dart';
 
 void main() async {
@@ -78,6 +79,9 @@ void main() async {
         BlocProvider<PosCubit>(create: (_) => serviceLocator<PosCubit>()),
         BlocProvider<ReportsCubit>(
           create: (_) => serviceLocator<ReportsCubit>(),
+        ),
+        BlocProvider<DiscountCodesCubit>(
+          create: (_) => serviceLocator<DiscountCodesCubit>(),
         ),
       ],
       child: const SpartaGymApp(),

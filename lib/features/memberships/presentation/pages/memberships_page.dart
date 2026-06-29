@@ -8,6 +8,7 @@ import '../../domain/entities/membership_entity.dart';
 import '../cubit/memberships_cubit.dart';
 import '../cubit/memberships_state.dart';
 import '../widgets/add_membership_dialog.dart';
+import '../../../discount_codes/presentation/widgets/discount_codes_list.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// شاشة باقات الاشتراكات (Memberships Page)
@@ -106,29 +107,67 @@ class _MembershipsPageState extends State<MembershipsPage> {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
 
-    return SidebarLayout(
-      activePage: 'memberships',
-      title: 'باقات واشتراكات الجيم',
-      actions: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-          child: ElevatedButton.icon(
-            onPressed: () => _showAddMembershipDialog(context),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('إضافة باقة جديدة'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primary,
-              foregroundColor: Colors.white,
+    return DefaultTabController(
+      length: 2,
+      child: SidebarLayout(
+        activePage: 'memberships',
+        title: 'باقات واشتراكات الجيم',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'تحديث البيانات',
+            onPressed: () {
+               context.read<MembershipsCubit>().loadMemberships();
+            },
+          ),
+        ],
+        body: Column(
+          children: [
+            Container(
+              color: theme.cardColor,
+              child: const TabBar(
+                tabs: [
+                  Tab(text: 'الباقات (Memberships)', icon: Icon(Icons.card_membership)),
+                  Tab(text: 'أكواد الخصم (Discount Codes)', icon: Icon(Icons.discount)),
+                ],
+              ),
             ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildMembershipsTab(context, primary, theme),
+                  const DiscountCodesList(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMembershipsTab(BuildContext context, Color primary, ThemeData theme) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () => _showAddMembershipDialog(context),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('إضافة باقة جديدة'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
           ),
         ),
-        IconButton(
-          icon: const Icon(Icons.refresh_rounded),
-          tooltip: 'تحديث البيانات',
-          onPressed: () => context.read<MembershipsCubit>().loadMemberships(),
-        ),
-      ],
-      body: BlocConsumer<MembershipsCubit, MembershipsState>(
+        Expanded(
+          child: BlocConsumer<MembershipsCubit, MembershipsState>(
           listener: (context, state) {
             if (state is MembershipActionSuccess) {
               ScaffoldMessenger.of(context)
@@ -286,6 +325,7 @@ class _MembershipsPageState extends State<MembershipsPage> {
             return const Center(child: Text('تحميل البيانات...'));
           },
         ),
-      );
+      ),
+    ]);
   }
 }

@@ -16,6 +16,8 @@ import '../../../diets/domain/entities/diet_plan.dart';
 import '../../../diets/domain/usecases/get_diet_plans.dart';
 import '../../../trainers/domain/entities/trainer_entity.dart';
 import '../../../trainers/domain/usecases/get_all_trainers.dart';
+import 'package:sparta_gym/features/discount_codes/domain/entities/discount_code.dart';
+import 'package:sparta_gym/features/discount_codes/domain/repositories/discount_codes_repository.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// ديالوج إضافة / تعديل عميل
@@ -27,13 +29,15 @@ class AddMemberDialog extends StatefulWidget {
   final Member? member;
 
   /// دالة الحفظ تُستدعى بكائن [Member] الجديد أو المعدّل وطريقة الدفع
-  final Function(Member member, String paymentMethod, {bool printInvoice, bool shareWhatsapp}) onSave;
+  final Function(
+    Member member,
+    String paymentMethod, {
+    bool printInvoice,
+    bool shareWhatsapp,
+  })
+  onSave;
 
-  const AddMemberDialog({
-    super.key,
-    this.member,
-    required this.onSave,
-  });
+  const AddMemberDialog({super.key, this.member, required this.onSave});
 
   @override
   State<AddMemberDialog> createState() => _AddMemberDialogState();
@@ -84,6 +88,11 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   bool _isLoadingDietPlans = true;
   int? _selectedDietPlanId;
 
+  // ──────────────── أكواد الخصم ────────────────
+  List<DiscountCode> _discountCodes = [];
+  bool _isLoadingDiscountCodes = true;
+  DiscountCode? _selectedDiscountCode;
+
   String _paymentMethod = 'نقدي';
 
   @override
@@ -99,8 +108,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
 
     // توليد معرّف تلقائي للعميل الجديد
     _memberIdCtrl = TextEditingController(
-      text: m?.memberId ??
-          'MEM-${DateTime.now().millisecondsSinceEpoch}',
+      text: m?.memberId ?? 'MEM-${DateTime.now().millisecondsSinceEpoch}',
     );
     _membershipType = m?.membershipType ?? 'شهري';
     _priceCtrl = TextEditingController(
@@ -119,7 +127,9 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
         : DateTime.now().add(const Duration(days: 30));
 
     _startDateCtrl = TextEditingController(
-      text: _startDate != null ? DateFormat('yyyy/MM/dd').format(_startDate!) : '',
+      text: _startDate != null
+          ? DateFormat('yyyy/MM/dd').format(_startDate!)
+          : '',
     );
     _endDateCtrl = TextEditingController(
       text: _endDate != null ? DateFormat('yyyy/MM/dd').format(_endDate!) : '',
@@ -141,6 +151,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     _loadMemberships();
     _loadTrainers();
     _loadDietPlans();
+    _loadDiscountCodes();
   }
 
   Future<void> _loadMemberships() async {
@@ -159,7 +170,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           }
           _memberships = uniqueMemberships.values.toList();
           _isLoadingMemberships = false;
-          
+
           if (!_isEditing && _memberships.isNotEmpty) {
             final defaultM = _memberships.firstWhere(
               (m) => m.name == _membershipType,
@@ -213,7 +224,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   void _selectMembership(Membership m) {
     setState(() {
       _membershipType = m.name;
-      
+
       if (_startDate != null) {
         _endDate = _startDate!.add(Duration(days: m.durationDays));
         _endDateCtrl.text = DateFormat('yyyy/MM/dd').format(_endDate!);
@@ -224,22 +235,27 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
 
   void _updateTotalPrice() {
     if (_memberships.isEmpty) return;
-    
+
     final m = _memberships.firstWhere(
       (element) => element.name == _membershipType,
       orElse: () => _memberships.first,
     );
-    
+
     double total = m.price;
-    
+
     if (_selectedTrainerName != null) {
       final t = _trainers.cast<Trainer>().firstWhere(
         (t) => t.fullName == _selectedTrainerName,
-        orElse: () => const Trainer(fullName: '', phoneNumber: '', isActive: false, createdAt: ''),
+        orElse: () => const Trainer(
+          fullName: '',
+          phoneNumber: '',
+          isActive: false,
+          createdAt: '',
+        ),
       );
       if (t.price != null) total += t.price!;
     }
-    
+
     if (_selectedDietPlanId != null) {
       final d = _dietPlans.cast<DietPlan>().firstWhere(
         (d) => d.id == _selectedDietPlanId,
@@ -247,14 +263,52 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       );
       total += d.price;
     }
-    
+
     // تأخير التحديث لتجنب تعارض الـ setState مع Dropdown listeners
     Future.microtask(() {
       if (mounted) {
         _priceCtrl.text = total.toStringAsFixed(0);
+        _applyDiscountCode();
         _calculateRemaining();
       }
     });
+  }
+
+  void _applyDiscountCode() {
+    if (_selectedDiscountCode == null) {
+      // لا تفعل شيء إذا كان تم مسح الكود وكان هناك خصم مخصص
+      return;
+    }
+    final code = _selectedDiscountCode!;
+    final price = double.tryParse(_priceCtrl.text) ?? 0;
+    double discount = 0;
+    if (code.type == 'percentage') {
+      discount = price * (code.value / 100);
+    } else {
+      discount = code.value;
+    }
+    _discountCtrl.text = discount.toStringAsFixed(0);
+  }
+
+  Future<void> _loadDiscountCodes() async {
+    try {
+      final repository = serviceLocator<DiscountCodesRepository>();
+      final result = await repository.getDiscountCodes();
+      result.fold((failure) {}, (codes) {
+        if (mounted) {
+          setState(() {
+            _discountCodes = codes;
+            _isLoadingDiscountCodes = false;
+          });
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingDiscountCodes = false;
+        });
+      }
+    }
   }
 
   @override
@@ -296,9 +350,9 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: ColorPalette.primaryColor,
-                ),
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: ColorPalette.primaryColor),
           ),
           child: child!,
         );
@@ -316,13 +370,15 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       id: widget.member?.id,
       memberId: _memberIdCtrl.text.trim(),
       fullName: _fullNameCtrl.text.trim(),
-      phoneNumber:
-          _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+      phoneNumber: _phoneCtrl.text.trim().isEmpty
+          ? null
+          : _phoneCtrl.text.trim(),
       email: widget.member?.email,
       gender: _selectedGender,
       birthDate: widget.member?.birthDate,
-      address:
-          _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
+      address: _addressCtrl.text.trim().isEmpty
+          ? null
+          : _addressCtrl.text.trim(),
       nationalId: widget.member?.nationalId,
       emergencyContact: widget.member?.emergencyContact,
       membershipType: _membershipType,
@@ -330,20 +386,23 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       discount: double.tryParse(_discountCtrl.text) ?? 0,
       paidAmount: double.tryParse(_paidCtrl.text) ?? 0,
       remainingAmount: _remainingAmount,
-      startDate:
-          _startDate?.toIso8601String() ?? now.toIso8601String(),
-      endDate: _endDate?.toIso8601String() ??
+      startDate: _startDate?.toIso8601String() ?? now.toIso8601String(),
+      endDate:
+          _endDate?.toIso8601String() ??
           now.add(const Duration(days: 30)).toIso8601String(),
       trainerName: _selectedTrainerName,
-      notes:
-          _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       memberPhotoPath: widget.member?.memberPhotoPath,
       dietPlanId: _selectedDietPlanId,
-      createdAt:
-          widget.member?.createdAt ?? now.toIso8601String(),
+      createdAt: widget.member?.createdAt ?? now.toIso8601String(),
     );
 
-    widget.onSave(member, _paymentMethod, printInvoice: printInvoice, shareWhatsapp: shareWhatsapp);
+    widget.onSave(
+      member,
+      _paymentMethod,
+      printInvoice: printInvoice,
+      shareWhatsapp: shareWhatsapp,
+    );
     Navigator.of(context).pop();
   }
 
@@ -377,9 +436,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                           decoration: BoxDecoration(
                             color: theme.cardColor,
                             border: Border(
-                              bottom: BorderSide(
-                                color: theme.dividerColor,
-                              ),
+                              bottom: BorderSide(color: theme.dividerColor),
                             ),
                           ),
                           child: TabBar(
@@ -398,13 +455,11 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                                 text: 'البيانات الشخصية',
                               ),
                               Tab(
-                                icon:
-                                    Icon(Icons.card_membership, size: 20),
+                                icon: Icon(Icons.card_membership, size: 20),
                                 text: 'بيانات الاشتراك',
                               ),
                               Tab(
-                                icon:
-                                    Icon(Icons.notes_outlined, size: 20),
+                                icon: Icon(Icons.notes_outlined, size: 20),
                                 text: 'ملاحظات',
                               ),
                             ],
@@ -566,7 +621,8 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                         if (_isEditing && m.id == widget.member?.id) {
                           return false;
                         }
-                        return m.memberId.trim().toLowerCase() == v.trim().toLowerCase();
+                        return m.memberId.trim().toLowerCase() ==
+                            v.trim().toLowerCase();
                       });
                       if (exists) {
                         return 'هذا الباركود/رقم العضوية مسجل لعميل آخر بالفعل';
@@ -581,13 +637,18 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                 child: _isLoadingMemberships
                     ? const Center(child: CircularProgressIndicator())
                     : DropdownButtonFormField<String>(
-                        value: _memberships.any((m) => m.name == _membershipType)
+                        value:
+                            _memberships.any((m) => m.name == _membershipType)
                             ? _membershipType
-                            : (_memberships.isNotEmpty ? _memberships.first.name : null),
+                            : (_memberships.isNotEmpty
+                                  ? _memberships.first.name
+                                  : null),
                         decoration: InputDecoration(
                           labelText: 'نوع الاشتراك *',
                           prefixIcon: const Icon(Icons.card_membership),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         items: _memberships.map((m) {
                           return DropdownMenuItem(
@@ -597,7 +658,9 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                         }).toList(),
                         onChanged: (v) {
                           if (v != null) {
-                            final m = _memberships.firstWhere((element) => element.name == v);
+                            final m = _memberships.firstWhere(
+                              (element) => element.name == v,
+                            );
                             _selectMembership(m);
                           }
                         },
@@ -607,10 +670,11 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           ),
           const SizedBox(height: 16),
 
-          // الصف الثاني: السعر + الخصم
+          // الصف الثاني: السعر + كود الخصم + قيمة الخصم
           Row(
             children: [
               Expanded(
+                flex: 2,
                 child: _buildTextField(
                   controller: _priceCtrl,
                   label: 'سعر الاشتراك',
@@ -621,9 +685,48 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
               ),
               const SizedBox(width: 16),
               Expanded(
+                flex: 3,
+                child: _isLoadingDiscountCodes
+                    ? const Center(child: CircularProgressIndicator())
+                    : DropdownButtonFormField<DiscountCode?>(
+                        value: _selectedDiscountCode,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'كود الخصم',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.local_offer_outlined),
+                        ),
+                        items: [
+                          const DropdownMenuItem<DiscountCode?>(
+                            value: null,
+                            child: Text('بدون كود (أو خصم يدوي)'),
+                          ),
+                          ..._discountCodes.map((code) {
+                            return DropdownMenuItem<DiscountCode?>(
+                              value: code,
+                              child: Text(
+                                '${code.name} (${code.type == 'percentage' ? '${code.value.toStringAsFixed(0)}%' : '${code.value.toStringAsFixed(0)} ج'})',
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedDiscountCode = val;
+                            if (val != null) {
+                              _applyDiscountCode();
+                              _calculateRemaining();
+                            }
+                          });
+                        },
+                      ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
                 child: _buildTextField(
                   controller: _discountCtrl,
-                  label: 'الخصم',
+                  label: 'قيمة الخصم',
                   icon: Icons.discount_outlined,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -670,13 +773,27 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                     decoration: InputDecoration(
                       labelText: 'طريقة الدفع *',
                       prefixIcon: const Icon(Icons.account_balance_wallet),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'نقدي', child: Text('نقدي (كاش)')),
-                      DropdownMenuItem(value: 'فودافون كاش', child: Text('فودافون كاش')),
-                      DropdownMenuItem(value: 'إنستاباي', child: Text('إنستاباي')),
-                      DropdownMenuItem(value: 'تحويل بنكي', child: Text('تحويل بنكي')),
+                      DropdownMenuItem(
+                        value: 'نقدي',
+                        child: Text('نقدي (كاش)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'فودافون كاش',
+                        child: Text('فودافون كاش'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'إنستاباي',
+                        child: Text('إنستاباي'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'تحويل بنكي',
+                        child: Text('تحويل بنكي'),
+                      ),
                       DropdownMenuItem(value: 'بطاقة', child: Text('بطاقة')),
                     ],
                     onChanged: (v) {
@@ -703,19 +820,33 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                   icon: Icons.calendar_today,
                   controller: _startDateCtrl,
                   onTap: () async {
-                    final picked =
-                        await _pickDate(context, _startDate);
+                    final picked = await _pickDate(context, _startDate);
                     if (picked != null) {
                       setState(() {
                         _startDate = picked;
-                        _startDateCtrl.text = DateFormat('yyyy/MM/dd').format(picked);
-                        final currentM = _memberships.cast<Membership>().firstWhere(
-                          (m) => m.name == _membershipType,
-                          orElse: () => const Membership(name: '', durationDays: 30, price: 0, freezeDays: 0, isActive: false, createdAt: ''),
-                        );
+                        _startDateCtrl.text = DateFormat(
+                          'yyyy/MM/dd',
+                        ).format(picked);
+                        final currentM = _memberships
+                            .cast<Membership>()
+                            .firstWhere(
+                              (m) => m.name == _membershipType,
+                              orElse: () => const Membership(
+                                name: '',
+                                durationDays: 30,
+                                price: 0,
+                                freezeDays: 0,
+                                isActive: false,
+                                createdAt: '',
+                              ),
+                            );
                         if (currentM.name.isNotEmpty) {
-                          _endDate = _startDate!.add(Duration(days: currentM.durationDays));
-                          _endDateCtrl.text = DateFormat('yyyy/MM/dd').format(_endDate!);
+                          _endDate = _startDate!.add(
+                            Duration(days: currentM.durationDays),
+                          );
+                          _endDateCtrl.text = DateFormat(
+                            'yyyy/MM/dd',
+                          ).format(_endDate!);
                         }
                       });
                     }
@@ -729,12 +860,13 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                   icon: Icons.event_outlined,
                   controller: _endDateCtrl,
                   onTap: () async {
-                    final picked =
-                        await _pickDate(context, _endDate);
+                    final picked = await _pickDate(context, _endDate);
                     if (picked != null) {
                       setState(() {
                         _endDate = picked;
-                        _endDateCtrl.text = DateFormat('yyyy/MM/dd').format(picked);
+                        _endDateCtrl.text = DateFormat(
+                          'yyyy/MM/dd',
+                        ).format(picked);
                       });
                     }
                   },
@@ -751,13 +883,18 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                 child: _isLoadingTrainers
                     ? const Center(child: CircularProgressIndicator())
                     : DropdownButtonFormField<String>(
-                        value: _trainers.any((t) => t.fullName == _selectedTrainerName)
+                        value:
+                            _trainers.any(
+                              (t) => t.fullName == _selectedTrainerName,
+                            )
                             ? _selectedTrainerName
                             : null,
                         decoration: InputDecoration(
                           labelText: 'المدرب المسؤول',
                           prefixIcon: const Icon(Icons.fitness_center),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         items: [
                           const DropdownMenuItem<String>(
@@ -784,13 +921,16 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                 child: _isLoadingDietPlans
                     ? const Center(child: CircularProgressIndicator())
                     : DropdownButtonFormField<int>(
-                        value: _dietPlans.any((d) => d.id == _selectedDietPlanId)
+                        value:
+                            _dietPlans.any((d) => d.id == _selectedDietPlanId)
                             ? _selectedDietPlanId
                             : null,
                         decoration: InputDecoration(
                           labelText: 'النظام الغذائي',
                           prefixIcon: const Icon(Icons.restaurant_menu),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         items: [
                           const DropdownMenuItem<int>(
@@ -844,9 +984,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
               ),
             ],
           ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(
@@ -882,8 +1020,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
             icon: const Icon(Icons.close, size: 18),
             label: const Text('إلغاء'),
             style: OutlinedButton.styleFrom(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -896,11 +1033,14 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
             ElevatedButton.icon(
               onPressed: () => _save(printInvoice: true),
               icon: const Icon(Icons.print, size: 18),
-              label: const Text('حفظ وطباعة'),
+              label: const Text('اضافة وطباعة'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: ColorPalette.secondaryColor,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -911,11 +1051,14 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
             ElevatedButton.icon(
               onPressed: () => _save(shareWhatsapp: true),
               icon: const Icon(Icons.share, size: 18),
-              label: const Text('مشاركة واتساب'),
+              label: const Text(' اضافة و مشاركةواتساب'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -924,20 +1067,16 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
             ),
             const SizedBox(width: 12),
           ],
-          
+
           // زر الحفظ
           ElevatedButton.icon(
             onPressed: () => _save(printInvoice: false),
-            icon: Icon(
-              _isEditing ? Icons.save : Icons.add,
-              size: 18,
-            ),
-            label: Text(_isEditing ? 'حفظ التعديلات' : 'إضافة العميل'),
+            icon: Icon(_isEditing ? Icons.save : Icons.add, size: 18),
+            label: Text(_isEditing ? 'حفظ التعديلات' : 'إضافة فقط'),
             style: ElevatedButton.styleFrom(
               backgroundColor: ColorPalette.primaryColor,
               foregroundColor: Colors.white,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -970,9 +1109,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, size: 20),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(
@@ -980,8 +1117,10 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
             width: 2,
           ),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
     );
   }
@@ -1000,9 +1139,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, size: 20),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(
@@ -1010,8 +1147,10 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
             width: 2,
           ),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
       items: items
           .map((e) => DropdownMenuItem(value: e, child: Text(e)))
@@ -1034,9 +1173,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
         labelText: label,
         prefixIcon: Icon(icon, size: 20),
         suffixIcon: const Icon(Icons.arrow_drop_down),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(
@@ -1044,8 +1181,10 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
             width: 2,
           ),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
     );
   }
@@ -1060,20 +1199,17 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     return TextFormField(
       readOnly: true,
       controller: controller,
-      style: TextStyle(
-        color: valueColor,
-        fontWeight: FontWeight.bold,
-      ),
+      style: TextStyle(color: valueColor, fontWeight: FontWeight.bold),
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, size: 20),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: Theme.of(context).disabledColor.withValues(alpha: 0.05),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
     );
   }
