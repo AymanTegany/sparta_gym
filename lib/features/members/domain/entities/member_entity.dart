@@ -25,6 +25,7 @@ class Member extends Equatable {
   final String? notes;
   final String? memberPhotoPath;
   final int? dietPlanId;
+  final String? additionalServicesIds;
   final String createdAt;
 
   const Member({
@@ -49,6 +50,7 @@ class Member extends Equatable {
     this.notes,
     this.memberPhotoPath,
     this.dietPlanId,
+    this.additionalServicesIds,
     required this.createdAt,
   });
 
@@ -111,6 +113,7 @@ class Member extends Equatable {
     String? notes,
     String? memberPhotoPath,
     int? dietPlanId,
+    String? additionalServicesIds,
     String? createdAt,
   }) {
     return Member(
@@ -135,6 +138,7 @@ class Member extends Equatable {
       notes: notes ?? this.notes,
       memberPhotoPath: memberPhotoPath ?? this.memberPhotoPath,
       dietPlanId: dietPlanId ?? this.dietPlanId,
+      additionalServicesIds: additionalServicesIds ?? this.additionalServicesIds,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -162,6 +166,7 @@ class Member extends Equatable {
         notes,
         memberPhotoPath,
         dietPlanId,
+        additionalServicesIds,
         createdAt,
       ];
 }

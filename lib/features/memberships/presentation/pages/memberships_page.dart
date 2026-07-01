@@ -9,6 +9,9 @@ import '../cubit/memberships_cubit.dart';
 import '../cubit/memberships_state.dart';
 import '../widgets/add_membership_dialog.dart';
 import '../../../discount_codes/presentation/widgets/discount_codes_list.dart';
+import '../../../additional_services/presentation/cubit/additional_services_cubit.dart';
+import '../../../additional_services/presentation/widgets/additional_services_list.dart';
+import '../../../../init_dependencies.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// شاشة باقات الاشتراكات (Memberships Page)
@@ -108,7 +111,7 @@ class _MembershipsPageState extends State<MembershipsPage> {
     final primary = theme.colorScheme.primary;
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: SidebarLayout(
         activePage: 'memberships',
         title: 'باقات واشتراكات الجيم',
@@ -129,6 +132,7 @@ class _MembershipsPageState extends State<MembershipsPage> {
                 tabs: [
                   Tab(text: 'الباقات (Memberships)', icon: Icon(Icons.card_membership)),
                   Tab(text: 'أكواد الخصم (Discount Codes)', icon: Icon(Icons.discount)),
+                  Tab(text: 'خدمات إضافية (Additional Services)', icon: Icon(Icons.spa)),
                 ],
               ),
             ),
@@ -137,6 +141,10 @@ class _MembershipsPageState extends State<MembershipsPage> {
                 children: [
                   _buildMembershipsTab(context, primary, theme),
                   const DiscountCodesList(),
+                  BlocProvider(
+                    create: (context) => serviceLocator<AdditionalServicesCubit>(),
+                    child: const AdditionalServicesList(),
+                  ),
                 ],
               ),
             ),

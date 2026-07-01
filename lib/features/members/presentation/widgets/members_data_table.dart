@@ -15,6 +15,7 @@ class MembersDataTable extends StatefulWidget {
   final Function(Member) onAddPayment;
   final Function(Member) onPrintCard;
   final Function(Member) onWhatsAppAlert;
+  final Function(Member) onWelcomeMessage;
 
   const MembersDataTable({
     super.key,
@@ -26,6 +27,7 @@ class MembersDataTable extends StatefulWidget {
     required this.onAddPayment,
     required this.onPrintCard,
     required this.onWhatsAppAlert,
+    required this.onWelcomeMessage,
   });
 
   @override
@@ -389,6 +391,9 @@ class _MembersDataTableState extends State<MembersDataTable> {
           case 'whatsapp':
             widget.onWhatsAppAlert(member);
             break;
+          case 'welcome_msg':
+            widget.onWelcomeMessage(member);
+            break;
           case 'delete':
             widget.onDelete(member);
             break;
@@ -411,6 +416,7 @@ class _MembersDataTableState extends State<MembersDataTable> {
         _buildPopupItem('payment', Icons.payment_rounded, 'إضافة دفعة', isDark),
         _buildPopupItem('print', Icons.print_rounded, 'طباعة بطاقة', isDark),
         _buildPopupItem('whatsapp', Icons.chat_rounded, 'تنبيه واتساب', isDark),
+        _buildPopupItem('welcome_msg', Icons.waving_hand_rounded, 'رسالة ترحيب', isDark),
         const PopupMenuDivider(),
         _buildPopupItem(
           'delete',

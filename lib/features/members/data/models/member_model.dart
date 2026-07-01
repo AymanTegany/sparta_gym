@@ -25,6 +25,7 @@ class MemberModel extends Member {
     super.notes,
     super.memberPhotoPath,
     super.dietPlanId,
+    super.additionalServicesIds,
     required super.createdAt,
   });
 
@@ -49,9 +50,10 @@ class MemberModel extends Member {
       startDate: map['startDate'] as String? ?? '',
       endDate: map['endDate'] as String? ?? '',
       trainerName: map['trainerName'] as String?,
-      notes: map['notes'] as String?,
-      memberPhotoPath: map['memberPhotoPath'] as String?,
-      dietPlanId: map['dietPlanId'] as int?,
+      notes: map['notes'] != null ? map['notes'] as String : null,
+      memberPhotoPath: map['memberPhotoPath'] != null ? map['memberPhotoPath'] as String : null,
+      dietPlanId: map['dietPlanId'] != null ? map['dietPlanId'] as int : null,
+      additionalServicesIds: map['additionalServicesIds'] != null ? map['additionalServicesIds'] as String : null,
       createdAt: map['createdAt'] as String? ?? '',
     );
   }
@@ -80,35 +82,37 @@ class MemberModel extends Member {
       'notes': notes,
       'memberPhotoPath': memberPhotoPath,
       'dietPlanId': dietPlanId,
+      'additionalServicesIds': additionalServicesIds,
       'createdAt': createdAt,
     };
   }
 
   /// تحويل من Member Entity إلى MemberModel
-  factory MemberModel.fromEntity(Member member) {
+  factory MemberModel.fromEntity(Member entity) {
     return MemberModel(
-      id: member.id,
-      memberId: member.memberId,
-      fullName: member.fullName,
-      phoneNumber: member.phoneNumber,
-      email: member.email,
-      gender: member.gender,
-      birthDate: member.birthDate,
-      address: member.address,
-      nationalId: member.nationalId,
-      emergencyContact: member.emergencyContact,
-      membershipType: member.membershipType,
-      membershipPrice: member.membershipPrice,
-      discount: member.discount,
-      paidAmount: member.paidAmount,
-      remainingAmount: member.remainingAmount,
-      startDate: member.startDate,
-      endDate: member.endDate,
-      trainerName: member.trainerName,
-      notes: member.notes,
-      memberPhotoPath: member.memberPhotoPath,
-      dietPlanId: member.dietPlanId,
-      createdAt: member.createdAt,
+      id: entity.id,
+      memberId: entity.memberId,
+      fullName: entity.fullName,
+      phoneNumber: entity.phoneNumber,
+      email: entity.email,
+      gender: entity.gender,
+      birthDate: entity.birthDate,
+      address: entity.address,
+      nationalId: entity.nationalId,
+      emergencyContact: entity.emergencyContact,
+      membershipType: entity.membershipType,
+      membershipPrice: entity.membershipPrice,
+      discount: entity.discount,
+      paidAmount: entity.paidAmount,
+      remainingAmount: entity.remainingAmount,
+      startDate: entity.startDate,
+      endDate: entity.endDate,
+      trainerName: entity.trainerName,
+      notes: entity.notes,
+      memberPhotoPath: entity.memberPhotoPath,
+      dietPlanId: entity.dietPlanId,
+      additionalServicesIds: entity.additionalServicesIds,
+      createdAt: entity.createdAt,
     );
   }
 
@@ -136,6 +140,7 @@ class MemberModel extends Member {
     String? notes,
     String? memberPhotoPath,
     int? dietPlanId,
+    String? additionalServicesIds,
     String? createdAt,
   }) {
     return MemberModel(
@@ -160,6 +165,7 @@ class MemberModel extends Member {
       notes: notes ?? this.notes,
       memberPhotoPath: memberPhotoPath ?? this.memberPhotoPath,
       dietPlanId: dietPlanId ?? this.dietPlanId,
+      additionalServicesIds: additionalServicesIds ?? this.additionalServicesIds,
       createdAt: createdAt ?? this.createdAt,
     );
   }

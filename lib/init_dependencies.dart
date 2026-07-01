@@ -119,6 +119,13 @@ import 'features/discount_codes/data/repositories/discount_codes_repository_impl
 import 'features/discount_codes/domain/repositories/discount_codes_repository.dart';
 import 'features/discount_codes/presentation/cubit/discount_codes_cubit.dart';
 
+// Additional Services Imports
+import 'features/additional_services/data/datasources/additional_services_local_data_source.dart';
+import 'features/additional_services/data/repositories/additional_services_repository_impl.dart';
+import 'features/additional_services/domain/repositories/additional_services_repository.dart';
+import 'features/additional_services/domain/usecases/additional_services_usecases.dart';
+import 'features/additional_services/presentation/cubit/additional_services_cubit.dart';
+
 final serviceLocator = GetIt.instance;
 
 /// تهيئة وحقن جميع التبعيات الخاصة بالتطبيق (Dependency Injection).
@@ -156,6 +163,7 @@ Future<void> initDependencies() async {
   _initDiets();
   _initReports();
   _initDiscountCodes();
+  _initAdditionalServices();
 }
 
 /// تهيئة ميزة المصادقة والترخيص
@@ -272,6 +280,28 @@ void _initDiscountCodes() {
       repository: serviceLocator(),
     ),
   );
+}
+
+void _initAdditionalServices() {
+  serviceLocator.registerLazySingleton<AdditionalServicesLocalDataSource>(
+    () => AdditionalServicesLocalDataSourceImpl(databaseHelper: serviceLocator()),
+  );
+
+  serviceLocator.registerLazySingleton<AdditionalServicesRepository>(
+    () => AdditionalServicesRepositoryImpl(localDataSource: serviceLocator()),
+  );
+
+  serviceLocator.registerLazySingleton(() => GetAllAdditionalServices(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => AddAdditionalService(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => UpdateAdditionalService(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => DeleteAdditionalService(serviceLocator()));
+
+  serviceLocator.registerFactory(() => AdditionalServicesCubit(
+    serviceLocator(),
+    serviceLocator(),
+    serviceLocator(),
+    serviceLocator(),
+  ));
 }
 
 /// تهيئة ميزة الحضور والانصراف

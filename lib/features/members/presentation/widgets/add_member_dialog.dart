@@ -18,12 +18,15 @@ import '../../../trainers/domain/entities/trainer_entity.dart';
 import '../../../trainers/domain/usecases/get_all_trainers.dart';
 import 'package:sparta_gym/features/discount_codes/domain/entities/discount_code.dart';
 import 'package:sparta_gym/features/discount_codes/domain/repositories/discount_codes_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sparta_gym/features/additional_services/domain/entities/additional_service.dart';
+import 'package:sparta_gym/features/additional_services/domain/usecases/additional_services_usecases.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// ديالوج إضافة / تعديل عميل
 /// ──────────────────────────────────────────────────────────────────────────────
 /// يُستخدم لإنشاء عميل جديد أو تعديل بيانات عميل حالي.
-/// يحتوي على 3 تبويبات: البيانات الشخصية، بيانات الاشتراك، والملاحظات.
+/// يحتوي على 3 تبويبات: البيانات الشخصية، بيانات الاشتراك، والشروط والأحكام.
 class AddMemberDialog extends StatefulWidget {
   /// العميل المراد تعديله (null = إضافة جديد)
   final Member? member;
@@ -54,6 +57,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   late final TextEditingController _fullNameCtrl;
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _addressCtrl;
+  late final TextEditingController _ageCtrl;
   String? _selectedGender;
 
   // ──────────────── متحكمات بيانات الاشتراك ────────────────
@@ -95,6 +99,11 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
 
   String _paymentMethod = 'نقدي';
 
+  // ──────────────── الخدمات الإضافية ────────────────
+  List<AdditionalService> _additionalServices = [];
+  List<AdditionalService> _selectedAdditionalServices = [];
+  bool _isLoadingAdditionalServices = true;
+
   @override
   void initState() {
     super.initState();
@@ -104,6 +113,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     _fullNameCtrl = TextEditingController(text: m?.fullName ?? '');
     _phoneCtrl = TextEditingController(text: m?.phoneNumber ?? '');
     _addressCtrl = TextEditingController(text: m?.address ?? '');
+    _ageCtrl = TextEditingController(text: m?.birthDate ?? '');
     _selectedGender = m?.gender;
 
     // توليد معرّف تلقائي للعميل الجديد
@@ -137,6 +147,10 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     _remainingCtrl = TextEditingController(text: '0');
 
     _notesCtrl = TextEditingController(text: m?.notes ?? '');
+    
+    if (!_isEditing && _notesCtrl.text.isEmpty) {
+      _loadDefaultTerms();
+    }
 
     _selectedTrainerName = m?.trainerName;
     _selectedDietPlanId = m?.dietPlanId;
@@ -152,6 +166,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     _loadTrainers();
     _loadDietPlans();
     _loadDiscountCodes();
+    _loadAdditionalServices();
   }
 
   Future<void> _loadMemberships() async {
@@ -221,6 +236,49 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     );
   }
 
+  Future<void> _loadAdditionalServices() async {
+    final result = await serviceLocator<GetAllAdditionalServices>()(NoParams());
+    result.fold(
+      (failure) {
+        setState(() {
+          _isLoadingAdditionalServices = false;
+        });
+      },
+      (services) {
+        setState(() {
+          _additionalServices = services.where((s) => s.isActive).toList();
+          
+          if (_isEditing && widget.member!.additionalServicesIds != null) {
+            final ids = widget.member!.additionalServicesIds!.split(',').map((e) => int.tryParse(e)).where((e) => e != null).toList();
+            _selectedAdditionalServices = _additionalServices.where((s) => ids.contains(s.id)).toList();
+          }
+          
+          _isLoadingAdditionalServices = false;
+        });
+      },
+    );
+  }
+
+  Future<void> _loadDefaultTerms() async {
+    final prefs = serviceLocator<SharedPreferences>();
+    final defaultTerms = prefs.getString('gym_default_terms') ?? '';
+    if (defaultTerms.isNotEmpty && mounted) {
+      setState(() {
+        _notesCtrl.text = defaultTerms;
+      });
+    }
+  }
+
+  Future<void> _saveDefaultTerms() async {
+    final prefs = serviceLocator<SharedPreferences>();
+    await prefs.setString('gym_default_terms', _notesCtrl.text);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم حفظ الشروط والأحكام الافتراضية بنجاح')),
+      );
+    }
+  }
+
   void _selectMembership(Membership m) {
     setState(() {
       _membershipType = m.name;
@@ -262,6 +320,10 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
         orElse: () => DietPlan(name: '', meals: '', createdAt: DateTime.now()),
       );
       total += d.price;
+    }
+    
+    for (var s in _selectedAdditionalServices) {
+      total += s.monthlyPrice;
     }
 
     // تأخير التحديث لتجنب تعارض الـ setState مع Dropdown listeners
@@ -316,6 +378,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     _fullNameCtrl.dispose();
     _phoneCtrl.dispose();
     _addressCtrl.dispose();
+    _ageCtrl.dispose();
     _memberIdCtrl.dispose();
     _priceCtrl.dispose();
     _discountCtrl.dispose();
@@ -375,7 +438,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           : _phoneCtrl.text.trim(),
       email: widget.member?.email,
       gender: _selectedGender,
-      birthDate: widget.member?.birthDate,
+      birthDate: _ageCtrl.text.trim().isEmpty ? null : _ageCtrl.text.trim(),
       address: _addressCtrl.text.trim().isEmpty
           ? null
           : _addressCtrl.text.trim(),
@@ -394,6 +457,9 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
       memberPhotoPath: widget.member?.memberPhotoPath,
       dietPlanId: _selectedDietPlanId,
+      additionalServicesIds: _selectedAdditionalServices.isEmpty 
+          ? null 
+          : _selectedAdditionalServices.map((e) => e.id).join(','),
       createdAt: widget.member?.createdAt ?? now.toIso8601String(),
     );
 
@@ -459,8 +525,8 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                                 text: 'بيانات الاشتراك',
                               ),
                               Tab(
-                                icon: Icon(Icons.notes_outlined, size: 20),
-                                text: 'ملاحظات',
+                                icon: Icon(Icons.gavel_outlined, size: 20),
+                                text: 'الشروط والأحكام',
                               ),
                             ],
                           ),
@@ -568,7 +634,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           ),
           const SizedBox(height: 16),
 
-          // الصف الثاني: الجنس + العنوان
+          // الصف الثاني: الجنس + العمر
           Row(
             children: [
               Expanded(
@@ -581,6 +647,20 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                 ),
               ),
               const SizedBox(width: 16),
+              Expanded(
+                child: _buildTextField(
+                  controller: _ageCtrl,
+                  label: 'العمر',
+                  icon: Icons.cake_outlined,
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // الصف الثالث: العنوان
+          Row(
+            children: [
               Expanded(
                 child: _buildTextField(
                   controller: _addressCtrl,
@@ -954,45 +1034,102 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
               ),
             ],
           ),
+          const SizedBox(height: 24),
+          if (_isLoadingAdditionalServices)
+            const Center(child: CircularProgressIndicator())
+          else if (_additionalServices.isNotEmpty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'خدمات أخرى (معدات إضافية):',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _additionalServices.map((service) {
+                    final isSelected = _selectedAdditionalServices.any((s) => s.id == service.id);
+                    return FilterChip(
+                      label: Text('${service.name} (${service.monthlyPrice.toStringAsFixed(0)} ج.م)'),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedAdditionalServices.add(service);
+                          } else {
+                            _selectedAdditionalServices.removeWhere((s) => s.id == service.id);
+                          }
+                          _updateTotalPrice();
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
         ],
       ),
     );
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // تبويب 3: الملاحظات
+  // ═══════════════════════════════════════════════════════════════════════════
+  // تبويب 3: الشروط والأحكام
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildNotesTab(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.all(24),
-      child: TextFormField(
-        controller: _notesCtrl,
-        maxLines: null,
-        expands: true,
-        textAlignVertical: TextAlignVertical.top,
-        decoration: InputDecoration(
-          labelText: 'ملاحظات',
-          hintText: 'أدخل أي ملاحظات إضافية عن العميل...',
-          alignLabelWithHint: true,
-          prefixIcon: const Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.start,
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Padding(
-                padding: EdgeInsets.only(top: 16),
-                child: Icon(Icons.notes_outlined),
+              const Text(
+                'الشروط والأحكام الخاصة بالاشتراك',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              ElevatedButton.icon(
+                onPressed: _saveDefaultTerms,
+                icon: const Icon(Icons.save),
+                label: const Text('حفظ كشروط افتراضية'),
               ),
             ],
           ),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: ColorPalette.primaryColor,
-              width: 2,
+          const SizedBox(height: 16),
+          Expanded(
+            child: TextFormField(
+              controller: _notesCtrl,
+              maxLines: null,
+              expands: true,
+              textAlignVertical: TextAlignVertical.top,
+              decoration: InputDecoration(
+                labelText: 'الشروط والأحكام',
+                hintText: 'أدخل الشروط والأحكام للعميل...',
+                alignLabelWithHint: true,
+                prefixIcon: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: Icon(Icons.gavel_outlined),
+                    ),
+                  ],
+                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: ColorPalette.primaryColor,
+                    width: 2,
+                  ),
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

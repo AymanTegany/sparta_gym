@@ -3,7 +3,7 @@
 ; Non-commercial use only
 
 #define MyAppName "Gym_System"
-#define MyAppVersion "1.2"
+#define MyAppVersion "1.3"
 #define MyAppPublisher "My Company, Inc."
 #define MyAppURL "https://www.ayman.com/"
 #define MyAppExeName "sparta_gym.exe"
@@ -42,7 +42,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "C:\Users\Ayman\Desktop\dev\sparta_gym\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Users\Ayman_Tegany\Desktop\div\sparta_gym\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Registry]

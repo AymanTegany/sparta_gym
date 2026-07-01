@@ -332,6 +332,12 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                   page: 'home',
                   theme: theme,
                 ),
+                if (!_isCollapsed)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 20, top: 16, bottom: 4),
+                    child: Text('الأعضاء والاشتراكات', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                if (_isCollapsed) const SizedBox(height: 8),
                 _buildNavItem(
                   context: context,
                   icon: Icons.group_rounded,
@@ -353,20 +359,12 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                   page: 'memberships',
                   theme: theme,
                 ),
-                _buildNavItem(
-                  context: context,
-                  icon: Icons.payments_rounded,
-                  title: 'المدفوعات والمالية',
-                  page: 'payments',
-                  theme: theme,
-                ),
-                _buildNavItem(
-                  context: context,
-                  icon: Icons.settings_rounded,
-                  title: 'إعدادات النظام',
-                  page: 'settings',
-                  theme: theme,
-                ),
+                if (!_isCollapsed)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 20, top: 16, bottom: 4),
+                    child: Text('الخدمات والمدربين', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                if (_isCollapsed) const SizedBox(height: 8),
                 _buildNavItem(
                   context: context,
                   icon: Icons.sports_gymnastics_rounded,
@@ -376,18 +374,17 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                 ),
                 _buildNavItem(
                   context: context,
-                  icon: Icons.account_balance_wallet_rounded,
-                  title: 'المصروفات',
-                  page: 'expenses',
+                  icon: Icons.fastfood_rounded,
+                  title: 'الأنظمة الغذائية',
+                  page: 'diets',
                   theme: theme,
                 ),
-                _buildNavItem(
-                  context: context,
-                  icon: Icons.inventory_2_rounded,
-                  title: 'المخزون',
-                  page: 'inventory',
-                  theme: theme,
-                ),
+                if (!_isCollapsed)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 20, top: 16, bottom: 4),
+                    child: Text('المالية والمبيعات', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                if (_isCollapsed) const SizedBox(height: 8),
                 _buildNavItem(
                   context: context,
                   icon: Icons.point_of_sale_rounded,
@@ -397,9 +394,29 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                 ),
                 _buildNavItem(
                   context: context,
-                  icon: Icons.fastfood_rounded,
-                  title: 'الأنظمة الغذائية',
-                  page: 'diets',
+                  icon: Icons.payments_rounded,
+                  title: 'المدفوعات والمالية',
+                  page: 'payments',
+                  theme: theme,
+                ),
+                _buildNavItem(
+                  context: context,
+                  icon: Icons.account_balance_wallet_rounded,
+                  title: 'المصروفات',
+                  page: 'expenses',
+                  theme: theme,
+                ),
+                if (!_isCollapsed)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 20, top: 16, bottom: 4),
+                    child: Text('أخرى', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                if (_isCollapsed) const SizedBox(height: 8),
+                _buildNavItem(
+                  context: context,
+                  icon: Icons.inventory_2_rounded,
+                  title: 'المخزون',
+                  page: 'inventory',
                   theme: theme,
                 ),
                 _buildNavItem(
@@ -407,6 +424,13 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                   icon: Icons.analytics_rounded,
                   title: 'التقارير اليومية',
                   page: 'reports',
+                  theme: theme,
+                ),
+                _buildNavItem(
+                  context: context,
+                  icon: Icons.settings_rounded,
+                  title: 'إعدادات النظام',
+                  page: 'settings',
                   theme: theme,
                 ),
               ],
@@ -590,6 +614,11 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                             selected: widget.activePage == 'home',
                             onTap: () => _navigateTo(context, 'home'),
                           ),
+                          const Divider(),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Text('الأعضاء والاشتراكات', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
                           ListTile(
                             leading: const Icon(Icons.group_rounded),
                             title: const Text('إدارة الأعضاء والمشتركين'),
@@ -608,17 +637,10 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                             selected: widget.activePage == 'memberships',
                             onTap: () => _navigateTo(context, 'memberships'),
                           ),
-                          ListTile(
-                            leading: const Icon(Icons.payments_rounded),
-                            title: const Text('المدفوعات والمالية'),
-                            selected: widget.activePage == 'payments',
-                            onTap: () => _navigateTo(context, 'payments'),
-                          ),
-                          ListTile(
-                            leading: const Icon(Icons.settings_rounded),
-                            title: const Text('إعدادات النظام'),
-                            selected: widget.activePage == 'settings',
-                            onTap: () => _navigateTo(context, 'settings'),
+                          const Divider(),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Text('الخدمات والمدربين', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
                           ),
                           ListTile(
                             leading: const Icon(Icons.sports_gymnastics_rounded),
@@ -627,16 +649,15 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                             onTap: () => _navigateTo(context, 'trainers'),
                           ),
                           ListTile(
-                            leading: const Icon(Icons.account_balance_wallet_rounded),
-                            title: const Text('المصروفات'),
-                            selected: widget.activePage == 'expenses',
-                            onTap: () => _navigateTo(context, 'expenses'),
+                            leading: const Icon(Icons.fastfood_rounded),
+                            title: const Text('الأنظمة الغذائية'),
+                            selected: widget.activePage == 'diets',
+                            onTap: () => _navigateTo(context, 'diets'),
                           ),
-                          ListTile(
-                            leading: const Icon(Icons.inventory_2_rounded),
-                            title: const Text('المخزون'),
-                            selected: widget.activePage == 'inventory',
-                            onTap: () => _navigateTo(context, 'inventory'),
+                          const Divider(),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Text('المالية والمبيعات', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
                           ),
                           ListTile(
                             leading: const Icon(Icons.point_of_sale_rounded),
@@ -645,16 +666,39 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                             onTap: () => _navigateTo(context, 'pos'),
                           ),
                           ListTile(
-                            leading: const Icon(Icons.fastfood_rounded),
-                            title: const Text('الأنظمة الغذائية'),
-                            selected: widget.activePage == 'diets',
-                            onTap: () => _navigateTo(context, 'diets'),
+                            leading: const Icon(Icons.payments_rounded),
+                            title: const Text('المدفوعات والمالية'),
+                            selected: widget.activePage == 'payments',
+                            onTap: () => _navigateTo(context, 'payments'),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.account_balance_wallet_rounded),
+                            title: const Text('المصروفات'),
+                            selected: widget.activePage == 'expenses',
+                            onTap: () => _navigateTo(context, 'expenses'),
+                          ),
+                          const Divider(),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Text('أخرى', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.inventory_2_rounded),
+                            title: const Text('المخزون'),
+                            selected: widget.activePage == 'inventory',
+                            onTap: () => _navigateTo(context, 'inventory'),
                           ),
                           ListTile(
                             leading: const Icon(Icons.analytics_rounded),
                             title: const Text('التقارير اليومية'),
                             selected: widget.activePage == 'reports',
                             onTap: () => _navigateTo(context, 'reports'),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.settings_rounded),
+                            title: const Text('إعدادات النظام'),
+                            selected: widget.activePage == 'settings',
+                            onTap: () => _navigateTo(context, 'settings'),
                           ),
                         ],
                       ),

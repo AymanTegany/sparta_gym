@@ -415,6 +415,119 @@ class _MembersPageState extends State<MembersPage> {
     );
   }
 
+  /// إرسال رسالة ترحيب عبر واتساب
+  Future<void> _sendWelcomeMessage(Member member) async {
+    if (member.phoneNumber == null || member.phoneNumber!.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('رقم الهاتف غير متوفر للعميل')),
+        );
+      }
+      return;
+    }
+
+    String phone = member.phoneNumber!;
+    if (phone.startsWith('0')) {
+      phone = '+20${phone.substring(1)}'; 
+    } else if (!phone.startsWith('+')) {
+      phone = '+20$phone'; 
+    }
+
+    String message = 'أهلاً بك كابتن ${member.fullName} في عائلة الجيم! 🎉\n\n';
+    message += 'يسعدنا انضمامك إلينا في باقة ${member.membershipType}.\n';
+    message += 'تاريخ بداية الاشتراك: ${_formatDate(member.startDate)}\n';
+    message += 'تاريخ نهاية الاشتراك: ${_formatDate(member.endDate)}\n\n';
+    message += 'نتمنى لك تجربة رياضية ممتعة وتحقيق كل أهدافك! 💪🏋️‍♂️';
+
+    if (!context.mounted) return;
+
+    final TextEditingController messageController = TextEditingController(text: message);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.waving_hand_rounded, color: Colors.blue, size: 28),
+              SizedBox(width: 10),
+              Text(
+                'رسالة ترحيب',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 450,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'يمكنك تعديل محتوى الرسالة قبل الإرسال:',
+                  style: TextStyle(
+                    fontSize: 14, 
+                    color: isDark ? Colors.grey[400] : Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: messageController,
+                  maxLines: 8,
+                  minLines: 4,
+                  textDirection: TextDirection.rtl,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: isDark 
+                        ? Colors.black26 
+                        : Colors.grey[50],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                final finalMessage = messageController.text;
+                final url = Uri.parse('https://wa.me/${phone.replaceAll('+', '')}?text=${Uri.encodeComponent(finalMessage)}');
+                
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                } else {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('لا يمكن فتح تطبيق واتساب')),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.send_rounded, size: 18),
+              label: const Text('إرسال الآن'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   /// تنسيق التاريخ
   String _formatDate(String dateStr) {
     try {
@@ -610,6 +723,7 @@ class _MembersPageState extends State<MembersPage> {
                         onAddPayment: (m) => _showAddPaymentDialog(context, m),
                         onPrintCard: (m) => _showPrintCardDialog(context, m),
                         onWhatsAppAlert: (m) => _sendWhatsAppAlert(m),
+                        onWelcomeMessage: (m) => _sendWelcomeMessage(m),
                       ),
                     ),
                   ),

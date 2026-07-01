@@ -18,8 +18,8 @@ class DatabaseHelper {
   // ==========================================
   // 2. إعدادات قاعدة البيانات
   // ==========================================
-  static const int _databaseVersion = 3;
-  static const String _databaseName = 'sparta_gym.db';
+  static const int _databaseVersion = 1;
+  static const String _databaseName = 'sparta_gym_v1.db';
 
   // ==========================================
   // 3. تهيئة قاعدة البيانات والوصول إليها
@@ -41,8 +41,12 @@ class DatabaseHelper {
       dbPath,
       options: OpenDatabaseOptions(
         version: _databaseVersion,
+        onConfigure: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+        },
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
+        onDowngrade: onDatabaseDowngradeDelete,
       ),
     );
   }
@@ -59,51 +63,8 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // Add price to diet_plans
-      try {
-        await db.execute('ALTER TABLE diet_plans ADD COLUMN price REAL NOT NULL DEFAULT 0');
-      } catch (e) {
-        if (!e.toString().contains('duplicate column name')) {
-          rethrow;
-        }
-      }
-
-      // Rename salary to price in trainers, or add if rename not supported.
-      try {
-        await db.execute('ALTER TABLE trainers RENAME COLUMN salary TO price');
-      } catch (e) {
-        if (e.toString().contains('no such column')) {
-           // Ignore if already renamed
-        } else {
-           try {
-             await db.execute('ALTER TABLE trainers ADD COLUMN price REAL DEFAULT 0');
-           } catch (e2) {
-             if (!e2.toString().contains('duplicate column name')) {
-                rethrow;
-             }
-           }
-         }
-      }
-    }
-
-    if (oldVersion < 3) {
-      try {
-        await db.execute('''
-          CREATE TABLE IF NOT EXISTS discount_codes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            type TEXT NOT NULL,
-            value REAL NOT NULL,
-            createdAt TEXT NOT NULL
-          )
-        ''');
-      } catch (e) {
-        if (!e.toString().contains('already exists')) {
-          rethrow;
-        }
-      }
-    }
+    // فارغة حالياً لأن هذا هو الإصدار الأول للتطبيق (v1).
+    // سيتم استخدام هذه الدالة في التحديثات المستقبلية.
   }
 
   /// دالة مساعدة لإنشاء جميع الجداول
@@ -132,6 +93,7 @@ class DatabaseHelper {
         notes TEXT,
         memberPhotoPath TEXT,
         dietPlanId INTEGER,
+        additionalServicesIds TEXT,
         createdAt TEXT NOT NULL
       )
     ''');
@@ -282,6 +244,18 @@ class DatabaseHelper {
         name TEXT NOT NULL UNIQUE,
         type TEXT NOT NULL,
         value REAL NOT NULL,
+        createdAt TEXT NOT NULL
+      )
+    ''');
+
+    // 13. جدول الخدمات الإضافية
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS additional_services (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        monthlyPrice REAL NOT NULL DEFAULT 0,
+        visitsLimit INTEGER NOT NULL DEFAULT 0,
+        isActive INTEGER NOT NULL DEFAULT 1,
         createdAt TEXT NOT NULL
       )
     ''');
