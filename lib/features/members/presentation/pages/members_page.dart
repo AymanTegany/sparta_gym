@@ -11,6 +11,7 @@ import '../cubit/members_cubit.dart';
 import '../cubit/members_state.dart';
 import '../widgets/add_member_dialog.dart';
 import '../widgets/member_details_dialog.dart';
+import '../../../../core/common/widgets/global_scanner_listener.dart';
 import '../widgets/renew_subscription_dialog.dart';
 import '../../../payments/presentation/cubit/payments_cubit.dart';
 import '../../../payments/domain/entities/payment_entity.dart';
@@ -55,7 +56,6 @@ class _MembersPageState extends State<MembersPage> {
     super.dispose();
   }
 
-  /// فتح ديالوج إضافة مشترك جديد
   void _showAddMemberDialog(BuildContext context) {
     showDialog(
       context: context,

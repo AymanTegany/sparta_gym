@@ -113,6 +113,12 @@ import 'features/reports/data/repositories/reports_repository_impl.dart';
 import 'features/reports/domain/repositories/reports_repository.dart';
 import 'features/reports/presentation/cubit/reports_cubit.dart';
 
+// Shifts Feature Imports
+import 'features/shifts/data/datasources/shifts_local_data_source.dart';
+import 'features/shifts/data/repositories/shifts_repository_impl.dart';
+import 'features/shifts/domain/repositories/shifts_repository.dart';
+import 'features/shifts/presentation/cubit/shifts_cubit.dart';
+
 // Discount Codes Imports
 import 'features/discount_codes/data/datasources/discount_codes_local_data_source.dart';
 import 'features/discount_codes/data/repositories/discount_codes_repository_impl.dart';
@@ -164,6 +170,7 @@ Future<void> initDependencies() async {
   _initReports();
   _initDiscountCodes();
   _initAdditionalServices();
+  _initShifts();
 }
 
 /// تهيئة ميزة المصادقة والترخيص
@@ -551,5 +558,23 @@ void _initReports() {
   // 3. Cubit
   serviceLocator.registerFactory<ReportsCubit>(
     () => ReportsCubit(repository: serviceLocator()),
+  );
+}
+
+/// تهيئة ميزة الشفتات
+void _initShifts() {
+  // 1. Datasource
+  serviceLocator.registerLazySingleton<ShiftsLocalDataSource>(
+    () => ShiftsLocalDataSourceImpl(databaseHelper: serviceLocator()),
+  );
+
+  // 2. Repository
+  serviceLocator.registerLazySingleton<ShiftsRepository>(
+    () => ShiftsRepositoryImpl(localDataSource: serviceLocator()),
+  );
+
+  // 3. Cubit
+  serviceLocator.registerFactory<ShiftsCubit>(
+    () => ShiftsCubit(repository: serviceLocator()),
   );
 }

@@ -11,6 +11,12 @@ import '../../../features/attendance/presentation/pages/attendance_page.dart';
 import '../../../features/memberships/presentation/pages/memberships_page.dart';
 import '../../../features/payments/presentation/pages/payments_page.dart';
 import '../../../features/settings/presentation/pages/settings_page.dart';
+import '../../../features/shifts/presentation/cubit/shifts_cubit.dart';
+import '../../../features/shifts/presentation/cubit/shifts_cubit.dart';
+import '../../../features/shifts/presentation/cubit/shifts_state.dart';
+import '../../../features/shifts/presentation/widgets/end_shift_dialog.dart';
+import '../../../features/shifts/presentation/widgets/shift_management_dialog.dart';
+import '../../../features/auth/presentation/cubit/auth_cubit.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// قائمة ملاحة جانبية موحدة للنظام (AppDrawer)
@@ -90,6 +96,14 @@ class AppDrawer extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _switchShift(BuildContext context) {
+    Navigator.pop(context); // إغلاق الدروار أولاً
+    showDialog(
+      context: context,
+      builder: (_) => const ShiftManagementDialog(),
     );
   }
 
@@ -224,11 +238,11 @@ class AppDrawer extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(12),
               child: _buildDrawerItem(
-                icon: Icons.logout_rounded,
-                title: 'تسجيل الخروج',
+                icon: Icons.swap_horiz_rounded,
+                title: 'الشفتات والموظفين',
                 isSelected: false,
-                onTap: () => _showLogoutDialog(context),
-                selectedColor: Colors.redAccent,
+                onTap: () => _switchShift(context),
+                selectedColor: Colors.orange,
               ),
             ),
           ],

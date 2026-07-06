@@ -21,6 +21,7 @@ import 'package:sparta_gym/features/discount_codes/domain/repositories/discount_
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sparta_gym/features/additional_services/domain/entities/additional_service.dart';
 import 'package:sparta_gym/features/additional_services/domain/usecases/additional_services_usecases.dart';
+import '../../../../core/common/widgets/global_scanner_listener.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// ديالوج إضافة / تعديل عميل
@@ -107,6 +108,9 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   @override
   void initState() {
     super.initState();
+    // إيقاف القارئ الشامل أثناء فتح هذه النافذة
+    GlobalScannerListener.isScannerActive = false;
+    
     final m = widget.member;
 
     // تهيئة المتحكمات بالقيم الحالية أو الافتراضية
@@ -375,6 +379,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
 
   @override
   void dispose() {
+    GlobalScannerListener.isScannerActive = true;
     _fullNameCtrl.dispose();
     _phoneCtrl.dispose();
     _addressCtrl.dispose();

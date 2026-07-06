@@ -40,11 +40,20 @@ class _MembersDataTableState extends State<MembersDataTable> {
   int _sortColumnIndex = 0;
   bool _sortAscending = true;
   late List<Member> _sortedMembers;
+  final ScrollController _scrollController = ScrollController();
+  final ScrollController _verticalScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _sortedMembers = List.from(widget.members);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _verticalScrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -98,21 +107,32 @@ class _MembersDataTableState extends State<MembersDataTable> {
     return Column(
       children: [
         // الجدول
-        Container(
-          decoration: BoxDecoration(
-            color: isDark ? ColorPalette.cardDark : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.06)
-                  : Colors.grey.shade200,
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? ColorPalette.cardDark : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : Colors.grey.shade200,
+              ),
             ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Scrollbar(
+                controller: _verticalScrollController,
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  controller: _verticalScrollController,
+                  scrollDirection: Axis.vertical,
+                  child: Scrollbar(
+                    controller: _scrollController,
+                    thumbVisibility: true,
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
                 headingRowHeight: 48,
                 dataRowMinHeight: 52,
                 dataRowMaxHeight: 56,
@@ -300,6 +320,10 @@ class _MembersDataTableState extends State<MembersDataTable> {
                     ],
                   );
                 }),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

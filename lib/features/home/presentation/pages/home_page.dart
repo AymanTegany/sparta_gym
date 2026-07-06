@@ -25,6 +25,8 @@ import '../../../payments/domain/entities/payment_entity.dart';
 import '../../../payments/presentation/cubit/payments_cubit.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../auth/presentation/cubit/auth_state.dart';
+import '../../../shifts/presentation/cubit/shifts_cubit.dart';
+import '../../../shifts/presentation/cubit/shifts_state.dart';
 import '../../../members/presentation/widgets/print_member_invoice.dart';
 
 // UI Widgets
@@ -54,12 +56,20 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DashboardCubit>().loadDashboard();
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   // ──────────────── دوال فتح الديالوجات الفرعية ────────────────
@@ -71,11 +81,16 @@ class _HomePageState extends State<HomePage> {
         onSave: (newMember, paymentMethod, {bool printInvoice = false, bool shareWhatsapp = false}) async {
           // الحصول على اسم الموظف الحالي
           String employeeName = 'موظف';
-          final authState = context.read<AuthCubit>().state;
-          if (authState is AuthAuthenticated) {
-            employeeName = authState.user.fullName.isNotEmpty
-                ? authState.user.fullName
-                : authState.user.username;
+          final shiftsState = context.read<ShiftsCubit>().state;
+          if (shiftsState is ShiftsActiveShift) {
+            employeeName = shiftsState.shift.employeeName;
+          } else {
+            final authState = context.read<AuthCubit>().state;
+            if (authState is AuthAuthenticated) {
+              employeeName = authState.user.fullName.isNotEmpty
+                  ? authState.user.fullName
+                  : authState.user.username;
+            }
           }
 
           // 1. حفظ العضو بمدفوع = 0 ومتبقي = الصافي كامل
@@ -92,11 +107,13 @@ class _HomePageState extends State<HomePage> {
           // 2. إذا نجح الحفظ وكان هناك مبلغ مدفوع، سجل الدفعة
           Payment? generatedPayment;
           if (success && newMember.paidAmount > 0) {
+            final shiftId = context.read<ShiftsCubit>().currentShiftId;
             generatedPayment = await context.read<PaymentsCubit>().recordPayment(
               memberId: newMember.memberId,
               amount: newMember.paidAmount,
               paymentMethod: paymentMethod,
               employeeName: employeeName,
+              shiftId: shiftId,
               notes: 'دفعة أولى عند الاشتراك',
             );
             if (context.mounted) {
@@ -170,11 +187,16 @@ class _HomePageState extends State<HomePage> {
             }) async {
               // الحصول على اسم الموظف الحالي
               String employeeName = 'موظف';
-              final authState = context.read<AuthCubit>().state;
-              if (authState is AuthAuthenticated) {
-                employeeName = authState.user.fullName.isNotEmpty
-                    ? authState.user.fullName
-                    : authState.user.username;
+              final shiftsState = context.read<ShiftsCubit>().state;
+              if (shiftsState is ShiftsActiveShift) {
+                employeeName = shiftsState.shift.employeeName;
+              } else {
+                final authState = context.read<AuthCubit>().state;
+                if (authState is AuthAuthenticated) {
+                  employeeName = authState.user.fullName.isNotEmpty
+                      ? authState.user.fullName
+                      : authState.user.username;
+                }
               }
 
               // 1. تجديد الاشتراك بوضع مبلغ مدفوع = 0، ومتبقي = الصافي الجديد
@@ -193,11 +215,13 @@ class _HomePageState extends State<HomePage> {
 
               // 2. إذا تم التجديد بنجاح وكان هناك مبلغ مدفوع، سجل الدفعة
               if (success && paidAmount > 0) {
+                final shiftId = context.read<ShiftsCubit>().currentShiftId;
                 await context.read<PaymentsCubit>().recordPayment(
                   memberId: member.memberId,
                   amount: paidAmount,
                   paymentMethod: paymentMethod,
                   employeeName: employeeName,
+                  shiftId: shiftId,
                   notes: 'تجديد اشتراك: $membershipType',
                 );
                 if (context.mounted) {
@@ -468,9 +492,17 @@ class _HomePageState extends State<HomePage> {
             final stats = state.stats;
 
             return Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: ConstrainedBox(
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  scrollbars: false, // We use a custom Scrollbar below
+                ),
+                child: Scrollbar(
+                  controller: _scrollController,
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(24.0),
+                    child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1000),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -614,7 +646,9 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-            );
+            ),
+          ),
+        );
           }
 
           return const Center(child: Text('جاري تحميل البيانات...'));

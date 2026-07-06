@@ -4,6 +4,7 @@ import '../../../../core/common/widgets/sidebar_layout.dart';
 import '../cubit/expenses_cubit.dart';
 import '../cubit/expenses_state.dart';
 import '../../domain/entities/expense_entity.dart';
+import '../../../../features/shifts/presentation/cubit/shifts_cubit.dart';
 
 class ExpensesPage extends StatefulWidget {
   const ExpensesPage({super.key});
@@ -199,7 +200,8 @@ class _ExpensesPageState extends State<ExpensesPage> with SingleTickerProviderSt
                     notes: notesController.text,
                     createdAt: DateTime.now().toIso8601String(),
                   );
-                  context.read<ExpensesCubit>().addExpense(expense);
+                  final shiftId = context.read<ShiftsCubit>().currentShiftId;
+                  context.read<ExpensesCubit>().addExpense(expense, shiftId: shiftId);
                   Navigator.pop(dialogContext);
                 }
               },

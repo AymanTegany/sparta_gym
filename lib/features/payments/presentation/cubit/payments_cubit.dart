@@ -70,6 +70,7 @@ class PaymentsCubit extends Cubit<PaymentsState> {
     required double amount,
     required String paymentMethod,
     required String employeeName,
+    int? shiftId,
     String? notes,
   }) async {
     emit(PaymentsLoading());
@@ -85,6 +86,7 @@ class PaymentsCubit extends Cubit<PaymentsState> {
       paymentMethod: paymentMethod,
       paymentDate: paymentDate,
       employeeName: employeeName,
+      shiftId: shiftId,
       notes: notes,
     );
 

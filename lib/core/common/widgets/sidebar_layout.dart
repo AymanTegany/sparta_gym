@@ -18,7 +18,13 @@ import '../../../features/inventory/presentation/pages/inventory_page.dart';
 import '../../../features/pos/presentation/pages/pos_page.dart';
 import '../../../features/diets/presentation/pages/diet_plans_page.dart';
 import '../../../features/reports/presentation/pages/reports_page.dart';
+import '../../../features/shifts/presentation/cubit/shifts_cubit.dart';
+import '../../../features/shifts/presentation/cubit/shifts_state.dart';
+import '../../../features/shifts/presentation/pages/manage_employees_page.dart';
+import '../../../features/shifts/presentation/widgets/end_shift_dialog.dart';
+import '../../../features/shifts/presentation/widgets/shift_management_dialog.dart';
 import '../../../init_dependencies.dart';
+import 'global_scanner_listener.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// تخطيط الصفحة الموحد مع شريط تنقل جانبي متطور وقابل للطي (SidebarLayout)
@@ -45,6 +51,7 @@ class SidebarLayout extends StatefulWidget {
 class _SidebarLayoutState extends State<SidebarLayout> {
   // حالة الطي العامة (تُحفظ كمتغير ستاتيك لتظل ثابتة أثناء التنقل بين الصفحات)
   static bool _isCollapsed = false;
+  final ScrollController _sidebarScrollController = ScrollController();
 
   @override
   void initState() {
@@ -56,6 +63,12 @@ class _SidebarLayoutState extends State<SidebarLayout> {
         _isCollapsed = prefs.getBool('sidebar_collapsed') ?? _isCollapsed;
       });
     } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _sidebarScrollController.dispose();
+    super.dispose();
   }
 
   void _toggleSidebar() {
@@ -116,6 +129,9 @@ class _SidebarLayoutState extends State<SidebarLayout> {
       case 'reports':
         targetPage = const ReportsPage();
         break;
+      case 'employees':
+        targetPage = const ManageEmployeesPage();
+        break;
       default:
         return;
     }
@@ -148,16 +164,32 @@ class _SidebarLayoutState extends State<SidebarLayout> {
             onPressed: () {
               Navigator.pop(ctx);
               context.read<AuthCubit>().logout();
+              Navigator.of(context, rootNavigator: true)
+                  .pushNamedAndRemoveUntil('/', (route) => false);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
               foregroundColor: Colors.white,
             ),
-            child: const Text('خروج'),
+            child: const Text('تسجيل الخروج'),
           ),
         ],
       ),
     );
+  }
+
+  void _showEndShiftDialog(BuildContext context, ShiftsCubit shiftsCubit, ShiftsState state) {
+    if (state is ShiftsActiveShift) {
+      showDialog(
+        context: context,
+        builder: (ctx) => EndShiftDialog(
+          currentShift: state.shift,
+          onConfirm: () {
+            shiftsCubit.endCurrentShift();
+          },
+        ),
+      );
+    }
   }
 
   // بناء عنصر ملاحة منفرد
@@ -322,7 +354,11 @@ class _SidebarLayoutState extends State<SidebarLayout> {
 
           // عناصر الملاحة (Nav Items)
           Expanded(
-            child: ListView(
+            child: Scrollbar(
+              controller: _sidebarScrollController,
+              thumbVisibility: true,
+              child: ListView(
+                controller: _sidebarScrollController,
               padding: const EdgeInsets.symmetric(vertical: 16),
               children: [
                 _buildNavItem(
@@ -422,7 +458,7 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                 _buildNavItem(
                   context: context,
                   icon: Icons.analytics_rounded,
-                  title: 'التقارير اليومية',
+                  title: 'تقرير الشيفت',
                   page: 'reports',
                   theme: theme,
                 ),
@@ -434,62 +470,97 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                   theme: theme,
                 ),
               ],
+              ),
             ),
+          ),
+          BlocBuilder<ShiftsCubit, ShiftsState>(
+            builder: (context, state) {
+              if (state is ShiftsActiveShift) {
+                if (_isCollapsed) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: IconButton(
+                      icon: const Icon(Icons.stop_circle_rounded, color: Colors.orange),
+                      onPressed: () => _showEndShiftDialog(context, context.read<ShiftsCubit>(), state),
+                      tooltip: 'إنهاء الشفت (${state.shift.employeeName})',
+                    ),
+                  );
+                }
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: InkWell(
+                    onTap: () => _showEndShiftDialog(context, context.read<ShiftsCubit>(), state),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.stop_circle_rounded, color: Colors.orange, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'إنهاء شفت: ${state.shift.employeeName}',
+                              style: const TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
           ),
           Divider(color: dividerColor, height: 1),
 
-          // ذيل القائمة (Footer Profile & Logout)
+          // ذيل القائمة (Switch Employee / Shift)
           Container(
             padding: const EdgeInsets.all(16),
+            width: double.infinity,
             child: _isCollapsed
-                ? InkWell(
-                    onTap: () => _showLogoutDialog(context),
-                    borderRadius: BorderRadius.circular(100),
-                    child: Tooltip(
-                      message: 'تسجيل الخروج ($employeeName)',
-                      child: CircleAvatar(
-                        backgroundColor: primary.withOpacity(0.2),
-                        radius: 20,
-                        child: Text(
-                          employeeName.substring(0, 1).toUpperCase(),
-                          style: TextStyle(color: primary, fontWeight: FontWeight.bold),
+                ? Tooltip(
+                    message: 'تبديل الموظفين والشفتات',
+                    child: InkWell(
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => const ShiftManagementDialog(),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        child: Icon(Icons.swap_horiz_rounded, color: primary),
                       ),
                     ),
                   )
-                : Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: primary.withOpacity(0.2),
-                        radius: 20,
-                        child: Text(
-                          employeeName.substring(0, 1).toUpperCase(),
-                          style: TextStyle(color: primary, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              employeeName,
-                              style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const Text(
-                              'موظف الاستقبال',
-                              style: TextStyle(color: Colors.grey, fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
-                        onPressed: () => _showLogoutDialog(context),
-                        tooltip: 'تسجيل الخروج',
-                      ),
-                    ],
+                : ElevatedButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => const ShiftManagementDialog(),
+                      );
+                    },
+                    icon: const Icon(Icons.swap_horiz_rounded, size: 24),
+                    label: const Text('الشفتات والموظفين', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: primary.withOpacity(0.1),
+                      foregroundColor: primary,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
           ),
         ],
@@ -503,9 +574,10 @@ class _SidebarLayoutState extends State<SidebarLayout> {
     final isDark = theme.brightness == Brightness.dark;
     final primary = theme.colorScheme.primary;
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
+    return GlobalScannerListener(
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
         body: LayoutBuilder(
           builder: (context, constraints) {
             // التحقق من عرض الشاشة (Desktop vs Mobile)
@@ -690,7 +762,7 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                           ),
                           ListTile(
                             leading: const Icon(Icons.analytics_rounded),
-                            title: const Text('التقارير اليومية'),
+                            title: const Text('تقرير الشيفت'),
                             selected: widget.activePage == 'reports',
                             onTap: () => _navigateTo(context, 'reports'),
                           ),
@@ -704,10 +776,33 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                       ),
                     ),
                     const Divider(),
-                    ListTile(
-                      leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-                      title: const Text('تسجيل الخروج', style: TextStyle(color: Colors.redAccent)),
-                      onTap: () => _showLogoutDialog(context),
+                    BlocBuilder<ShiftsCubit, ShiftsState>(
+                      builder: (context, state) {
+                        if (state is ShiftsActiveShift) {
+                          return ListTile(
+                            leading: const Icon(Icons.stop_circle_rounded, color: Colors.orange),
+                            title: const Text('إنهاء الشفت', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                            subtitle: Text('الموظف: ${state.shift.employeeName}', style: const TextStyle(fontSize: 10, color: Colors.orange)),
+                            onTap: () => _showEndShiftDialog(context, context.read<ShiftsCubit>(), state),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                    BlocBuilder<ShiftsCubit, ShiftsState>(
+                      builder: (context, state) {
+                        return ListTile(
+                          leading: const Icon(Icons.swap_horiz_rounded, color: Colors.orange),
+                          title: const Text('الشفتات والموظفين', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                          onTap: () {
+                            Navigator.pop(context); // close drawer
+                            showDialog(
+                              context: context,
+                              builder: (_) => const ShiftManagementDialog(),
+                            );
+                          },
+                        );
+                      },
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -729,6 +824,7 @@ class _SidebarLayoutState extends State<SidebarLayout> {
               ),
             );
           },
+        ),
         ),
       ),
     );

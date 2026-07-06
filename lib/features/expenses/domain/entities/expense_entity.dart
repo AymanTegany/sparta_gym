@@ -6,6 +6,7 @@ class Expense {
   final String date;
   final String? notes;
   final String createdAt;
+  final int? shiftId;
 
   Expense({
     this.id,
@@ -15,6 +16,7 @@ class Expense {
     required this.date,
     this.notes,
     required this.createdAt,
+    this.shiftId,
   });
 
   Map<String, dynamic> toMap() {
@@ -26,6 +28,7 @@ class Expense {
       'date': date,
       'notes': notes,
       'createdAt': createdAt,
+      if (shiftId != null) 'shiftId': shiftId,
     };
   }
 
@@ -38,6 +41,7 @@ class Expense {
       date: map['date'],
       notes: map['notes'],
       createdAt: map['createdAt'],
+      shiftId: map['shiftId'],
     );
   }
 }

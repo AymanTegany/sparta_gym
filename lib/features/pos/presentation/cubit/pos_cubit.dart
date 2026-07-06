@@ -55,7 +55,7 @@ class PosCubit extends Cubit<PosState> {
     }
   }
 
-  Future<void> checkout(String paymentMethod) async {
+  Future<void> checkout(String paymentMethod, {int? shiftId}) async {
     if (state is PosLoaded) {
       final currentState = state as PosLoaded;
       if (currentState.cart.isEmpty) return;
@@ -87,6 +87,7 @@ class PosCubit extends Cubit<PosState> {
           paymentMethod: paymentMethod,
           date: DateTime.now().toIso8601String().split('T').first,
           createdAt: DateTime.now().toIso8601String(),
+          shiftId: shiftId,
         );
 
         await processSaleUseCase(sale: sale, items: saleItems);

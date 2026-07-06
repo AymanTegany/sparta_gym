@@ -11,6 +11,7 @@ class Payment extends Equatable {
   final String paymentMethod; // نقدي، فودافون كاش، إنستاباي، تحويل بنكي، بطاقة
   final String paymentDate;
   final String employeeName; // اسم الموظف المسؤول
+  final int? shiftId; // معرف الشفت
   final String? notes;
 
   const Payment({
@@ -23,6 +24,7 @@ class Payment extends Equatable {
     required this.paymentMethod,
     required this.paymentDate,
     required this.employeeName,
+    this.shiftId,
     this.notes,
   });
 
@@ -37,6 +39,7 @@ class Payment extends Equatable {
         paymentMethod,
         paymentDate,
         employeeName,
+        shiftId,
         notes,
       ];
 }

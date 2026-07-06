@@ -8,6 +8,7 @@ class PosSale {
   final String? memberId;
   final String date;
   final String createdAt;
+  final int? shiftId;
 
   PosSale({
     this.id,
@@ -19,6 +20,7 @@ class PosSale {
     this.memberId,
     required this.date,
     required this.createdAt,
+    this.shiftId,
   });
 
   Map<String, dynamic> toMap() {
@@ -32,6 +34,7 @@ class PosSale {
       'memberId': memberId,
       'date': date,
       'createdAt': createdAt,
+      if (shiftId != null) 'shiftId': shiftId,
     };
   }
 
@@ -46,6 +49,7 @@ class PosSale {
       memberId: map['memberId'],
       date: map['date'],
       createdAt: map['createdAt'],
+      shiftId: map['shiftId'],
     );
   }
 }

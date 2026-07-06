@@ -7,9 +7,12 @@ import '../../../../core/theme/color_palette.dart';
 import '../../../members/domain/entities/member_entity.dart';
 import '../../../members/presentation/cubit/members_cubit.dart';
 import '../../../members/presentation/cubit/members_state.dart';
+import '../../domain/entities/payment_entity.dart';
 import '../cubit/payments_cubit.dart';
 import '../../../../features/auth/presentation/cubit/auth_cubit.dart';
 import '../../../../features/auth/presentation/cubit/auth_state.dart';
+import '../../../../features/shifts/presentation/cubit/shifts_cubit.dart';
+import '../../../../features/shifts/presentation/cubit/shifts_state.dart';
 
 class AddPaymentDialog extends StatefulWidget {
   final Member? member;
@@ -70,18 +73,26 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
 
     // الحصول على اسم الموظف الحالي
     String employeeName = 'موظف';
-    final authState = context.read<AuthCubit>().state;
-    if (authState is AuthAuthenticated) {
-      employeeName = authState.user.fullName.isNotEmpty
-          ? authState.user.fullName
-          : authState.user.username;
+    final shiftsState = context.read<ShiftsCubit>().state;
+    if (shiftsState is ShiftsActiveShift) {
+      employeeName = shiftsState.shift.employeeName;
+    } else {
+      final authState = context.read<AuthCubit>().state;
+      if (authState is AuthAuthenticated) {
+        employeeName = authState.user.fullName.isNotEmpty
+            ? authState.user.fullName
+            : authState.user.username;
+      }
     }
+
+    final shiftId = context.read<ShiftsCubit>().currentShiftId;
 
     context.read<PaymentsCubit>().recordPayment(
           memberId: _selectedMember!.memberId,
           amount: amount,
           paymentMethod: _paymentMethod,
           employeeName: employeeName,
+          shiftId: shiftId,
           notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
         );
 

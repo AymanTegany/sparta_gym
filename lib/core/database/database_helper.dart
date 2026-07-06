@@ -18,7 +18,7 @@ class DatabaseHelper {
   // ==========================================
   // 2. إعدادات قاعدة البيانات
   // ==========================================
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 3;
   static const String _databaseName = 'sparta_gym_v1.db';
 
   // ==========================================
@@ -63,8 +63,65 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // فارغة حالياً لأن هذا هو الإصدار الأول للتطبيق (v1).
-    // سيتم استخدام هذه الدالة في التحديثات المستقبلية.
+    if (oldVersion < 2) {
+      // ── الترقية من v1 إلى v2: نظام الشفتات والموظفين ──
+
+      // 1. إنشاء جدول الموظفين
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS employees (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          password TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'employee',
+          isActive INTEGER NOT NULL DEFAULT 1,
+          createdAt TEXT NOT NULL
+        )
+      ''');
+
+      // 2. إنشاء جدول الشفتات
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS shifts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          employeeId INTEGER NOT NULL,
+          employeeName TEXT NOT NULL,
+          startTime TEXT NOT NULL,
+          endTime TEXT,
+          isActive INTEGER NOT NULL DEFAULT 1,
+          notes TEXT,
+          FOREIGN KEY(employeeId) REFERENCES employees(id) ON DELETE CASCADE
+        )
+      ''');
+
+      // 3. إضافة عمود shiftId للجداول الحالية
+      await db.execute('ALTER TABLE payments ADD COLUMN shiftId INTEGER');
+      await db.execute('ALTER TABLE pos_sales ADD COLUMN shiftId INTEGER');
+      await db.execute('ALTER TABLE expenses ADD COLUMN shiftId INTEGER');
+
+      // 4. إنشاء فهارس للجداول الجديدة
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_shifts_employeeId ON shifts(employeeId)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_shifts_isActive ON shifts(isActive)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_employees_name ON employees(name)');
+
+      // 5. إدخال حساب مدير افتراضي (كلمة السر: admin)
+      await _insertDefaultAdmin(db);
+    }
+
+    if (oldVersion < 3) {
+      // ── الترقية إلى v3: جدولة الشفتات التلقائية ──
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS scheduled_shifts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          employeeId INTEGER NOT NULL,
+          employeeName TEXT NOT NULL,
+          startHour INTEGER NOT NULL,
+          startMinute INTEGER NOT NULL,
+          endHour INTEGER,
+          endMinute INTEGER,
+          isEnabled INTEGER NOT NULL DEFAULT 1,
+          FOREIGN KEY(employeeId) REFERENCES employees(id) ON DELETE CASCADE
+        )
+      ''');
+    }
   }
 
   /// دالة مساعدة لإنشاء جميع الجداول
@@ -163,6 +220,7 @@ class DatabaseHelper {
         paymentMethod TEXT NOT NULL,
         paymentDate TEXT NOT NULL,
         employeeName TEXT NOT NULL,
+        shiftId INTEGER,
         notes TEXT,
         FOREIGN KEY(memberId) REFERENCES members(memberId) ON DELETE CASCADE
       )
@@ -189,6 +247,7 @@ class DatabaseHelper {
         category TEXT NOT NULL,
         amount REAL NOT NULL,
         date TEXT NOT NULL,
+        shiftId INTEGER,
         notes TEXT,
         createdAt TEXT NOT NULL
       )
@@ -218,6 +277,7 @@ class DatabaseHelper {
         finalAmount REAL NOT NULL DEFAULT 0,
         paymentMethod TEXT NOT NULL,
         memberId TEXT,
+        shiftId INTEGER,
         date TEXT NOT NULL,
         createdAt TEXT NOT NULL
       )
@@ -259,6 +319,47 @@ class DatabaseHelper {
         createdAt TEXT NOT NULL
       )
     ''');
+
+    // 14. جدول الموظفين
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS employees (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'employee',
+        isActive INTEGER NOT NULL DEFAULT 1,
+        createdAt TEXT NOT NULL
+      )
+    ''');
+
+    // 15. جدول الشفتات
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS shifts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employeeId INTEGER NOT NULL,
+        employeeName TEXT NOT NULL,
+        startTime TEXT NOT NULL,
+        endTime TEXT,
+        isActive INTEGER NOT NULL DEFAULT 1,
+        notes TEXT,
+        FOREIGN KEY(employeeId) REFERENCES employees(id) ON DELETE CASCADE
+      )
+    ''');
+
+    // 16. جدول جدولة الشفتات التلقائية
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS scheduled_shifts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        employeeId INTEGER NOT NULL,
+        employeeName TEXT NOT NULL,
+        startHour INTEGER NOT NULL,
+        startMinute INTEGER NOT NULL,
+        endHour INTEGER,
+        endMinute INTEGER,
+        isEnabled INTEGER NOT NULL DEFAULT 1,
+        FOREIGN KEY(employeeId) REFERENCES employees(id) ON DELETE CASCADE
+      )
+    ''');
   }
 
   /// دالة مساعدة لإنشاء الفهارس (Indexes) لتسريع البحث
@@ -276,6 +377,11 @@ class DatabaseHelper {
     // فهارس المدفوعات
     await db.execute('CREATE INDEX IF NOT EXISTS idx_payments_memberId ON payments(memberId)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_payments_paymentDate ON payments(paymentDate)');
+
+    // فهارس الشفتات والموظفين
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_shifts_employeeId ON shifts(employeeId)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_shifts_isActive ON shifts(isActive)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_employees_name ON employees(name)');
   }
 
   /// دالة مساعدة لإدخال البيانات الافتراضية للأنظمة الغذائية وباقات الاشتراك
@@ -325,6 +431,26 @@ class DatabaseHelper {
 
     for (var plan in defaultDietPlans) {
       await db.insert('diet_plans', plan, conflictAlgorithm: ConflictAlgorithm.ignore);
+    }
+
+    // 3. إدخال حساب مدير افتراضي
+    await _insertDefaultAdmin(db);
+  }
+
+  /// إدخال حساب المدير الافتراضي
+  Future<void> _insertDefaultAdmin(Database db) async {
+    // التحقق من عدم وجود حساب مدير مسبقاً
+    final existing = await db.query('employees', where: "role = 'admin'", limit: 1);
+    if (existing.isEmpty) {
+      // كلمة سر مشفرة لـ 'admin' باستخدام SHA-256
+      const adminPasswordHash = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
+      await db.insert('employees', {
+        'name': 'المدير',
+        'password': adminPasswordHash,
+        'role': 'admin',
+        'isActive': 1,
+        'createdAt': DateTime.now().toIso8601String(),
+      });
     }
   }
 

@@ -26,9 +26,19 @@ class ExpensesCubit extends Cubit<ExpensesState> {
     }
   }
 
-  Future<void> addExpense(Expense expense) async {
+  Future<void> addExpense(Expense expense, {int? shiftId}) async {
     try {
-      await addExpenseUseCase(expense);
+      final expenseWithShift = Expense(
+        id: expense.id,
+        title: expense.title,
+        category: expense.category,
+        amount: expense.amount,
+        date: expense.date,
+        notes: expense.notes,
+        createdAt: expense.createdAt,
+        shiftId: shiftId,
+      );
+      await addExpenseUseCase(expenseWithShift);
       loadExpenses();
     } catch (e) {
       emit(ExpensesError(e.toString()));

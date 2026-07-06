@@ -138,7 +138,30 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
     final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-    final dailyResult = await _getDailyAttendance(dateStr);
+    var dailyResult = await _getDailyAttendance(dateStr);
+    bool hasAutoCheckedOut = false;
+
+    // تسجيل الخروج التلقائي بعد 6 ساعات
+    await dailyResult.fold(
+      (failure) async {},
+      (dailyList) async {
+        final now = DateTime.now();
+        for (var attendance in dailyList) {
+          if (attendance.checkOutTime == null) {
+            final inTime = DateTime.tryParse(attendance.checkInTime);
+            if (inTime != null && now.difference(inTime).inHours >= 6) {
+              await _checkOutMember(attendance.memberId);
+              hasAutoCheckedOut = true;
+            }
+          }
+        }
+      },
+    );
+
+    if (hasAutoCheckedOut) {
+      dailyResult = await _getDailyAttendance(dateStr);
+    }
+
     final statsResult = await _getAttendanceStats(NoParams());
 
     dailyResult.fold(

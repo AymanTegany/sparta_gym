@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart' hide TextDirection;
-import 'package:awesome_dialog/awesome_dialog.dart';
 
 import '../../../../core/theme/color_palette.dart';
 import '../../../../core/common/widgets/sidebar_layout.dart';
@@ -22,6 +21,8 @@ class _AttendancePageState extends State<AttendancePage> {
   final FocusNode _scanFocusNode = FocusNode();
   final TextEditingController _scanCtrl = TextEditingController();
   final TextEditingController _searchCtrl = TextEditingController();
+  final ScrollController _horizontalScrollController = ScrollController();
+  final ScrollController _verticalScrollController = ScrollController();
   
   // لتعطيل المسح المتكرر لنفس العضو في فترة قصيرة
   String? _lastScannedBarcode;
@@ -45,6 +46,8 @@ class _AttendancePageState extends State<AttendancePage> {
     _scanFocusNode.dispose();
     _scanCtrl.dispose();
     _searchCtrl.dispose();
+    _horizontalScrollController.dispose();
+    _verticalScrollController.dispose();
     super.dispose();
   }
 
@@ -101,39 +104,10 @@ class _AttendancePageState extends State<AttendancePage> {
       ],
       body: BlocConsumer<AttendanceCubit, AttendanceState>(
           listener: (context, state) {
-            if (state is AttendanceActionSuccess) {
-              AwesomeDialog(
-                context: context,
-                dialogType: DialogType.success,
-                animType: AnimType.scale,
-                title: state.type == 'حضور' ? 'تم تسجيل الدخول' : 'تم تسجيل الخروج',
-                desc: state.message,
-                descTextStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
-                titleTextStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
-                autoHide: const Duration(seconds: 3),
-                onDismissCallback: (type) {
-                  _scanFocusNode.requestFocus();
-                },
-              ).show();
-            } else if (state is AttendanceError) {
-              if (state.message.contains('منتهي') || state.message.contains('منتهية')) {
-                AudioService.playAlertSound();
-              }
-              AwesomeDialog(
-                context: context,
-                dialogType: DialogType.error,
-                animType: AnimType.scale,
-                title: 'تنبيه',
-                desc: state.message,
-                descTextStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: Colors.red),
-                titleTextStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
-                btnOkOnPress: () {},
-                btnOkColor: Colors.red,
-                btnOkText: 'حسناً',
-                onDismissCallback: (type) {
-                  _scanFocusNode.requestFocus();
-                },
-              ).show();
+            if (state is AttendanceActionSuccess || state is AttendanceError) {
+              // Dialogs and sounds are now handled globally by GlobalScannerListener.
+              // Here we just make sure to return focus to the text field if the user is on this page.
+              _scanFocusNode.requestFocus();
             }
           },
           builder: (context, state) {
@@ -642,11 +616,19 @@ class _AttendancePageState extends State<AttendancePage> {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                return SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
+                return Scrollbar(
+                  controller: _verticalScrollController,
+                  thumbVisibility: true,
                   child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: ConstrainedBox(
+                    controller: _verticalScrollController,
+                    scrollDirection: Axis.vertical,
+                    child: Scrollbar(
+                      controller: _horizontalScrollController,
+                      thumbVisibility: true,
+                      child: SingleChildScrollView(
+                        controller: _horizontalScrollController,
+                        scrollDirection: Axis.horizontal,
+                        child: ConstrainedBox(
                       constraints: BoxConstraints(
                         minWidth: constraints.maxWidth,
                       ),
@@ -704,10 +686,12 @@ class _AttendancePageState extends State<AttendancePage> {
                   ),
                 ),
               ),
-            );
-           },
+            ),
           ),
-         ),
+        );
+       },
+      ),
+    ),
         ],
       ),
     );

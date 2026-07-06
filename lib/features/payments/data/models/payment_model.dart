@@ -12,6 +12,7 @@ class PaymentModel extends Payment {
     required super.paymentMethod,
     required super.paymentDate,
     required super.employeeName,
+    super.shiftId,
     super.notes,
   });
 
@@ -27,6 +28,7 @@ class PaymentModel extends Payment {
       paymentMethod: map['paymentMethod'] as String,
       paymentDate: map['paymentDate'] as String,
       employeeName: map['employeeName'] as String,
+      shiftId: map['shiftId'] as int?,
       notes: map['notes'] as String?,
     );
   }
@@ -41,6 +43,7 @@ class PaymentModel extends Payment {
       'paymentMethod': paymentMethod,
       'paymentDate': paymentDate,
       'employeeName': employeeName,
+      if (shiftId != null) 'shiftId': shiftId,
       'notes': notes,
     };
   }
@@ -57,6 +60,7 @@ class PaymentModel extends Payment {
       paymentMethod: entity.paymentMethod,
       paymentDate: entity.paymentDate,
       employeeName: entity.employeeName,
+      shiftId: entity.shiftId,
       notes: entity.notes,
     );
   }

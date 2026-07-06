@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/common/widgets/sidebar_layout.dart';
 import '../cubit/pos_cubit.dart';
 import '../cubit/pos_state.dart';
+import '../../../../features/shifts/presentation/cubit/shifts_cubit.dart';
 
 class PosPage extends StatefulWidget {
   const PosPage({super.key});
@@ -233,7 +234,8 @@ class _PosPageState extends State<PosPage> {
                           height: 50,
                           child: ElevatedButton.icon(
                             onPressed: cart.isEmpty ? null : () async {
-                              await context.read<PosCubit>().checkout('كاش');
+                              final shiftId = context.read<ShiftsCubit>().currentShiftId;
+                              await context.read<PosCubit>().checkout('كاش', shiftId: shiftId);
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('تم إصدار الفاتورة وحفظها بنجاح!')),
