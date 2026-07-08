@@ -17,10 +17,56 @@ class ManageEmployeesPage extends StatefulWidget {
 }
 
 class _ManageEmployeesPageState extends State<ManageEmployeesPage> {
+  List<Map<String, dynamic>> _schedules = [];
+  bool _isLoadingSchedules = false;
+
+  Duration _timeUntilStart(int startHour, int startMinute) {
+    final now = DateTime.now();
+    var startDateTime = DateTime(now.year, now.month, now.day, startHour, startMinute);
+    if (startDateTime.isBefore(now)) {
+      startDateTime = startDateTime.add(const Duration(days: 1));
+    }
+    return startDateTime.difference(now);
+  }
+
+  String _formatDurationArabic(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    
+    if (hours == 0) {
+      return '$minutes دقيقة';
+    } else if (hours == 1) {
+      if (minutes == 0) return 'ساعة واحدة';
+      return 'ساعة و$minutes دقيقة';
+    } else if (hours == 2) {
+      if (minutes == 0) return 'ساعتين';
+      return 'ساعتين و$minutes دقيقة';
+    } else if (hours >= 3 && hours <= 10) {
+      if (minutes == 0) return '$hours ساعات';
+      return '$hours ساعات و$minutes دقيقة';
+    } else {
+      if (minutes == 0) return '$hours ساعة';
+      return '$hours ساعة و$minutes دقيقة';
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    if (!mounted) return;
+    setState(() => _isLoadingSchedules = true);
     context.read<ShiftsCubit>().loadEmployees();
+    final schedules = await context.read<ShiftsCubit>().getScheduledShifts();
+    if (mounted) {
+      setState(() {
+        _schedules = schedules;
+        _isLoadingSchedules = false;
+      });
+    }
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -76,14 +122,14 @@ class _ManageEmployeesPageState extends State<ManageEmployeesPage> {
           } else if (state is ShiftsEmployeeActionSuccess) {
             _showSnackBar(state.message);
             // إعادة تحميل القائمة بعد أي عملية ناجحة
-            context.read<ShiftsCubit>().loadEmployees();
+            _loadData();
           }
         },
         child: BlocBuilder<ShiftsCubit, ShiftsState>(
           buildWhen: (prev, curr) =>
               curr is ShiftsEmployeesLoaded || curr is ShiftsLoading,
           builder: (context, state) {
-            if (state is ShiftsLoading) {
+            if (state is ShiftsLoading || _isLoadingSchedules) {
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -162,6 +208,18 @@ class _ManageEmployeesPageState extends State<ManageEmployeesPage> {
       itemCount: employees.length,
       itemBuilder: (context, index) {
         final emp = employees[index];
+        final scheduleIndex = _schedules.indexWhere((s) => s['employeeId'] == emp.id);
+        final schedule = scheduleIndex != -1 ? _schedules[scheduleIndex] : null;
+
+        String scheduleText = '';
+        if (schedule != null) {
+          final startHour = (schedule['startHour'] as int).toString().padLeft(2, '0');
+          final startMinute = (schedule['startMinute'] as int).toString().padLeft(2, '0');
+          final endHour = (schedule['endHour'] as int).toString().padLeft(2, '0');
+          final endMinute = (schedule['endMinute'] as int).toString().padLeft(2, '0');
+          scheduleText = '$startHour:$startMinute - $endHour:$endMinute';
+        }
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
@@ -215,11 +273,43 @@ class _ManageEmployeesPageState extends State<ManageEmployeesPage> {
             ),
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Row(
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   // حالة النشاط
                   _buildStatusBadge(emp.isActive),
-                  const SizedBox(width: 12),
+                  if (schedule != null) ...[
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.schedule_rounded, size: 14, color: schedule['isEnabled'] == 1 ? Colors.green : Colors.red),
+                        const SizedBox(width: 4),
+                        Text(
+                          schedule['isEnabled'] == 1
+                              ? 'الدوام: $scheduleText (نشط - يبدأ بعد ${_formatDurationArabic(_timeUntilStart(schedule['startHour'] as int, schedule['startMinute'] as int))})'
+                              : 'الدوام: $scheduleText (معطل)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: schedule['isEnabled'] == 1 ? Colors.green : Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.schedule_rounded, size: 14, color: Colors.redAccent),
+                        const SizedBox(width: 4),
+                        const Text(
+                          'الدوام: غير محدد (معطل)',
+                          style: TextStyle(fontSize: 12, color: Colors.redAccent),
+                        ),
+                      ],
+                    ),
+                  ],
                   // تاريخ الإنشاء
                   if (emp.createdAt != null)
                     Text(
@@ -334,6 +424,27 @@ class _ManageEmployeesPageState extends State<ManageEmployeesPage> {
     final isDark = theme.brightness == Brightness.dark;
     final primary = theme.colorScheme.primary;
 
+    final scheduleIndex = employee != null
+        ? _schedules.indexWhere((s) => s['employeeId'] == employee.id)
+        : -1;
+    final schedule = scheduleIndex != -1 ? _schedules[scheduleIndex] : null;
+
+    TimeOfDay selectedStartTime = schedule != null
+        ? TimeOfDay(
+            hour: schedule['startHour'] as int,
+            minute: schedule['startMinute'] as int,
+          )
+        : const TimeOfDay(hour: 9, minute: 0);
+
+    TimeOfDay selectedEndTime = schedule != null
+        ? TimeOfDay(
+            hour: schedule['endHour'] as int,
+            minute: schedule['endMinute'] as int,
+          )
+        : const TimeOfDay(hour: 17, minute: 0);
+
+    bool isScheduledEnabled = schedule != null ? (schedule['isEnabled'] == 1) : true;
+
     showDialog(
       context: context,
       builder: (ctx) {
@@ -439,6 +550,64 @@ class _ManageEmployeesPageState extends State<ManageEmployeesPage> {
                           ),
                           const SizedBox(height: 16),
 
+                          // ── وقت بداية الشفت ──
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.green,
+                            ),
+                            title: const Text('وقت بداية الشفت'),
+                            subtitle: Text(selectedStartTime.format(ctx)),
+                            trailing: TextButton(
+                              onPressed: () async {
+                                final time = await showTimePicker(
+                                  context: ctx,
+                                  initialTime: selectedStartTime,
+                                );
+                                if (time != null) {
+                                  setDialogState(() => selectedStartTime = time);
+                                }
+                              },
+                              child: const Text('تغيير'),
+                            ),
+                          ),
+
+                          // ── وقت نهاية الشفت ──
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(
+                              Icons.stop_rounded,
+                              color: Colors.redAccent,
+                            ),
+                            title: const Text('وقت نهاية الشفت'),
+                            subtitle: Text(selectedEndTime.format(ctx)),
+                            trailing: TextButton(
+                              onPressed: () async {
+                                final time = await showTimePicker(
+                                  context: ctx,
+                                  initialTime: selectedEndTime,
+                                );
+                                if (time != null) {
+                                  setDialogState(() => selectedEndTime = time);
+                                }
+                              },
+                              child: const Text('تغيير'),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('تفعيل الجدولة التلقائية'),
+                            subtitle: const Text('بدء الشفت تلقائياً عند حلول موعده'),
+                            value: isScheduledEnabled,
+                            onChanged: (val) {
+                              setDialogState(() => isScheduledEnabled = val);
+                            },
+                            activeColor: primary,
+                          ),
+                          const SizedBox(height: 8),
+
                           // ── حالة النشاط (للتعديل فقط) ──
                           if (isEdit)
                             SwitchListTile(
@@ -490,7 +659,7 @@ class _ManageEmployeesPageState extends State<ManageEmployeesPage> {
                                     Navigator.pop(ctx);
 
                                     if (isEdit) {
-                                      final updated = employee!.copyWith(
+                                      final updated = employee.copyWith(
                                         name: nameCtrl.text.trim(),
                                         role: selectedRole,
                                         isActive: isActive,
@@ -504,14 +673,41 @@ class _ManageEmployeesPageState extends State<ManageEmployeesPage> {
                                                     ? passwordCtrl.text
                                                     : null,
                                           );
-                                    } else {
+
                                       await context
+                                          .read<ShiftsCubit>()
+                                          .updateEmployeeSchedule(
+                                            employeeId: employee.id!,
+                                            employeeName: nameCtrl.text.trim(),
+                                            startHour: selectedStartTime.hour,
+                                            startMinute: selectedStartTime.minute,
+                                            endHour: selectedEndTime.hour,
+                                            endMinute: selectedEndTime.minute,
+                                            isEnabled: isScheduledEnabled ? 1 : 0,
+                                          );
+                                      _loadData();
+                                    } else {
+                                      final newEmployee = await context
                                           .read<ShiftsCubit>()
                                           .addEmployee(
                                             name: nameCtrl.text.trim(),
                                             password: passwordCtrl.text,
                                             role: selectedRole,
                                           );
+                                      if (newEmployee != null) {
+                                        await context
+                                            .read<ShiftsCubit>()
+                                            .addScheduledShift(
+                                              employeeId: newEmployee.id!,
+                                              employeeName: newEmployee.name,
+                                              startHour: selectedStartTime.hour,
+                                              startMinute: selectedStartTime.minute,
+                                              endHour: selectedEndTime.hour,
+                                              endMinute: selectedEndTime.minute,
+                                              isEnabled: isScheduledEnabled ? 1 : 0,
+                                            );
+                                        _loadData();
+                                      }
                                     }
                                   },
                                   style: ElevatedButton.styleFrom(

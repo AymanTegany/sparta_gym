@@ -21,9 +21,18 @@ class ShiftsCubit extends Cubit<ShiftsState> {
   /// تايمر مراقبة الجدولة التلقائية
   Timer? _schedulerTimer;
 
-  /// لتفادي تشغيل شفت مرتين في نفس الدقيقة
-  String? _lastTriggeredKey;
+  /// لتفادي تكرار التشغيل أو الإنهاء في نفس اليوم
+  final Set<String> _triggeredKeys = {};
 
+  bool _isShiftActivePeriod(int currentMins, int startMins, int endMins) {
+    if (startMins < endMins) {
+      return currentMins >= startMins && currentMins < endMins;
+    } else if (startMins > endMins) {
+      return currentMins >= startMins || currentMins < endMins;
+    } else {
+      return true; // 24 ساعة
+    }
+  }
   ShiftsCubit({required this.repository}) : super(ShiftsInitial());
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -95,6 +104,11 @@ class ShiftsCubit extends Cubit<ShiftsState> {
           },
           (shift) {
             _activeShift = shift;
+            
+            final now = DateTime.now();
+            final startKey = 'start-${now.year}-${now.month}-${now.day}-${employee.id}';
+            _triggeredKeys.add(startKey);
+
             emit(ShiftsActiveShift(shift));
             return true;
           },
@@ -129,6 +143,12 @@ class ShiftsCubit extends Cubit<ShiftsState> {
             return null;
           },
           (report) {
+            final now = DateTime.now();
+            final endKey = 'end-${now.year}-${now.month}-${now.day}-${_activeShift!.employeeId}';
+            final startKey = 'start-${now.year}-${now.month}-${now.day}-${_activeShift!.employeeId}';
+            _triggeredKeys.add(endKey);
+            _triggeredKeys.add(startKey);
+
             _activeShift = null;
             _currentEmployee = null;
             emit(ShiftsEnded(report));
@@ -161,6 +181,11 @@ class ShiftsCubit extends Cubit<ShiftsState> {
       (shift) {
         _activeShift = shift;
         _currentEmployee = employee;
+        
+        final now = DateTime.now();
+        final startKey = 'start-${now.year}-${now.month}-${now.day}-${employee.id}';
+        _triggeredKeys.add(startKey);
+
         emit(ShiftsActiveShift(shift));
         return true;
       },
@@ -178,6 +203,12 @@ class ShiftsCubit extends Cubit<ShiftsState> {
     endResult.fold(
       (error) => emit(ShiftsError(error)),
       (_) {
+        final now = DateTime.now();
+        final endKey = 'end-${now.year}-${now.month}-${now.day}-${_activeShift!.employeeId}';
+        final startKey = 'start-${now.year}-${now.month}-${now.day}-${_activeShift!.employeeId}';
+        _triggeredKeys.add(endKey);
+        _triggeredKeys.add(startKey);
+
         _activeShift = null;
         _currentEmployee = null;
         _loadEmployeesForLogin(); // يعود لحالة عدم وجود شفت
@@ -199,6 +230,22 @@ class ShiftsCubit extends Cubit<ShiftsState> {
     return reportResult.fold(
       (error) => null,
       (report) => report,
+    );
+  }
+
+  Future<ShiftReport?> getLastClosedShiftReport() async {
+    final historyResult = await repository.getShiftHistory(limit: 1);
+    return historyResult.fold(
+      (error) => null,
+      (history) async {
+        if (history.isEmpty) return null;
+        final lastShift = history.first;
+        final reportResult = await repository.getShiftReport(lastShift.id!);
+        return reportResult.fold(
+          (error) => null,
+          (report) => report,
+        );
+      },
     );
   }
 
@@ -295,27 +342,37 @@ class ShiftsCubit extends Cubit<ShiftsState> {
   /// فحص الشفتات المجدولة وتشغيل/إنهاء المطابق للوقت الحالي
   Future<void> _checkScheduledShifts() async {
     final now = DateTime.now();
-    final currentHour = now.hour;
-    final currentMinute = now.minute;
+    final currentMins = now.hour * 60 + now.minute;
 
     final result = await repository.getEnabledScheduledShifts();
-    final schedules = result.fold((_) => <Map<String, dynamic>>[], (data) => data);
+    final allSchedules = result.fold((_) => <Map<String, dynamic>>[], (data) => data);
+    final schedules = allSchedules.where((s) => s['isEnabled'] == 1).toList();
     if (schedules.isEmpty) return;
 
     // ── 1. لو في شفت نشط → تحقق هل حان وقت إنهائه ──
     if (_activeShift != null) {
       for (final schedule in schedules) {
-        final endHour = schedule['endHour'] as int?;
-        final endMinute = schedule['endMinute'] as int?;
-        if (endHour == null || endMinute == null) continue;
-
         final employeeId = schedule['employeeId'] as int;
         if (_activeShift!.employeeId == employeeId) {
-          final endKey = 'end-${now.year}-${now.month}-${now.day}-$endHour-$endMinute';
-          if (currentHour == endHour && currentMinute == endMinute && _lastTriggeredKey != endKey) {
-            _lastTriggeredKey = endKey;
-            await endShiftDirectly();
-            return;
+          final endHour = schedule['endHour'] as int?;
+          final endMinute = schedule['endMinute'] as int?;
+          if (endHour == null || endMinute == null) continue;
+
+          final startHour = schedule['startHour'] as int;
+          final startMinute = schedule['startMinute'] as int;
+          
+          final startMins = startHour * 60 + startMinute;
+          final endMins = endHour * 60 + endMinute;
+
+          final isActivePeriod = _isShiftActivePeriod(currentMins, startMins, endMins);
+          
+          if (!isActivePeriod) {
+            final endKey = 'end-${now.year}-${now.month}-${now.day}-$employeeId';
+            if (!_triggeredKeys.contains(endKey)) {
+              _triggeredKeys.add(endKey);
+              await endShiftDirectly();
+              return;
+            }
           }
         }
       }
@@ -324,29 +381,33 @@ class ShiftsCubit extends Cubit<ShiftsState> {
 
     // ── 2. لا يوجد شفت نشط → تحقق هل حان وقت بدء شفت ──
     for (final schedule in schedules) {
-      final hour = schedule['startHour'] as int;
-      final minute = schedule['startMinute'] as int;
+      final startHour = schedule['startHour'] as int;
+      final startMinute = schedule['startMinute'] as int;
+      final endHour = schedule['endHour'] as int?;
+      final endMinute = schedule['endMinute'] as int?;
+      
+      if (endHour == null || endMinute == null) continue;
 
-      // مفتاح فريد لتفادي التكرار في نفس الدقيقة
-      final key = 'start-${now.year}-${now.month}-${now.day}-$hour-$minute';
+      final startMins = startHour * 60 + startMinute;
+      final endMins = endHour * 60 + endMinute;
 
-      if (currentHour == hour && currentMinute == minute && _lastTriggeredKey != key) {
-        _lastTriggeredKey = key;
+      if (_isShiftActivePeriod(currentMins, startMins, endMins)) {
+        // نتحقق مما إذا كان المستخدم قد أنهى هذا الشفت يدوياً اليوم
+        final endKey = 'end-${now.year}-${now.month}-${now.day}-${schedule['employeeId']}';
+        
+        if (!_triggeredKeys.contains(endKey)) {
+          final employeeId = schedule['employeeId'] as int;
+          final employeeName = schedule['employeeName'] as String;
+          final employee = Employee(
+            id: employeeId,
+            name: employeeName,
+          );
 
-        final employeeId = schedule['employeeId'] as int;
-        final employeeName = schedule['employeeName'] as String;
-
-        final employee = Employee(
-          id: employeeId,
-          name: employeeName,
-        );
-
-        final customTime = DateTime(
-          now.year, now.month, now.day, hour, minute,
-        );
-
-        await startShiftDirectly(employee, customStartTime: customTime);
-        return; // شفت واحد فقط في المرة
+          // لا نضيف startKey هنا، startShiftDirectly ستضيفه
+          // ولكن هذا لا يهم، لأن _activeShift سيصبح غير فارغ ولن يصل لهذه النقطة مجدداً
+          await startShiftDirectly(employee);
+          return; // شفت واحد فقط في المرة
+        }
       }
     }
   }
@@ -359,6 +420,7 @@ class ShiftsCubit extends Cubit<ShiftsState> {
     required int startMinute,
     int? endHour,
     int? endMinute,
+    int isEnabled = 1,
   }) async {
     final result = await repository.addScheduledShift(
       employeeId: employeeId,
@@ -367,8 +429,41 @@ class ShiftsCubit extends Cubit<ShiftsState> {
       startMinute: startMinute,
       endHour: endHour,
       endMinute: endMinute,
+      isEnabled: isEnabled,
     );
+    _triggeredKeys.clear();
     return result.fold((_) => false, (_) => true);
+  }
+
+  /// تحديث شفت مجدول
+  Future<bool> updateEmployeeSchedule({
+    required int employeeId,
+    required String employeeName,
+    required int startHour,
+    required int startMinute,
+    required int endHour,
+    required int endMinute,
+    int isEnabled = 1,
+  }) async {
+    final schedules = await getScheduledShifts();
+    final scheduleIndex = schedules.indexWhere((s) => s['employeeId'] == employeeId);
+    
+    if (scheduleIndex != -1) {
+      await deleteScheduledShift(schedules[scheduleIndex]['id'] as int);
+    }
+    
+    final result = await addScheduledShift(
+      employeeId: employeeId,
+      employeeName: employeeName,
+      startHour: startHour,
+      startMinute: startMinute,
+      endHour: endHour,
+      endMinute: endMinute,
+      isEnabled: isEnabled,
+    );
+    
+    _triggeredKeys.clear();
+    return result;
   }
 
   /// حذف شفت مجدول

@@ -140,6 +140,7 @@ class ShiftsRepositoryImpl implements ShiftsRepository {
     required int startMinute,
     int? endHour,
     int? endMinute,
+    int isEnabled = 1,
   }) async {
     try {
       await localDataSource.addScheduledShift(
@@ -149,6 +150,7 @@ class ShiftsRepositoryImpl implements ShiftsRepository {
         startMinute: startMinute,
         endHour: endHour,
         endMinute: endMinute,
+        isEnabled: isEnabled,
       );
       return const Right(null);
     } catch (e) {

@@ -22,7 +22,7 @@ abstract class ShiftsLocalDataSource {
   Future<List<ShiftModel>> getShiftHistory({int? employeeId, int limit = 50});
 
   // ─── جدولة الشفتات التلقائية ───
-  Future<void> addScheduledShift({required int employeeId, required String employeeName, required int startHour, required int startMinute, int? endHour, int? endMinute});
+  Future<void> addScheduledShift({required int employeeId, required String employeeName, required int startHour, required int startMinute, int? endHour, int? endMinute, int isEnabled = 1});
   Future<List<Map<String, dynamic>>> getEnabledScheduledShifts();
   Future<void> deleteScheduledShift(int id);
 }
@@ -366,6 +366,7 @@ class ShiftsLocalDataSourceImpl implements ShiftsLocalDataSource {
     required int startMinute,
     int? endHour,
     int? endMinute,
+    int isEnabled = 1,
   }) async {
     try {
       final db = await databaseHelper.database;
@@ -376,7 +377,7 @@ class ShiftsLocalDataSourceImpl implements ShiftsLocalDataSource {
         'startMinute': startMinute,
         'endHour': endHour,
         'endMinute': endMinute,
-        'isEnabled': 1,
+        'isEnabled': isEnabled,
       });
     } catch (e) {
       throw DatabaseException('فشل في إضافة جدولة الشفت: $e');
@@ -389,7 +390,6 @@ class ShiftsLocalDataSourceImpl implements ShiftsLocalDataSource {
       final db = await databaseHelper.database;
       return await db.query(
         'scheduled_shifts',
-        where: 'isEnabled = 1',
       );
     } catch (e) {
       throw DatabaseException('فشل في جلب الشفتات المجدولة: $e');

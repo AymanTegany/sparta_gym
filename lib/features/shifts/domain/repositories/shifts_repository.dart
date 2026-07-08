@@ -19,7 +19,7 @@ abstract class ShiftsRepository {
   Future<Either<String, List<Shift>>> getShiftHistory({int? employeeId, int limit = 50});
 
   // ─── جدولة الشفتات التلقائية ───
-  Future<Either<String, void>> addScheduledShift({required int employeeId, required String employeeName, required int startHour, required int startMinute, int? endHour, int? endMinute});
+  Future<Either<String, void>> addScheduledShift({required int employeeId, required String employeeName, required int startHour, required int startMinute, int? endHour, int? endMinute, int isEnabled = 1});
   Future<Either<String, List<Map<String, dynamic>>>> getEnabledScheduledShifts();
   Future<Either<String, void>> deleteScheduledShift(int id);
 }

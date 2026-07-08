@@ -390,61 +390,6 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                           const SizedBox(height: 32),
 
-                          // 4. كارت إدارة الموظفين
-                          _buildSectionHeader('إدارة الموظفين', Icons.manage_accounts),
-                          const SizedBox(height: 16),
-                          Card(
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            child: Padding(
-                              padding: const EdgeInsets.all(24.0),
-                              child: Row(
-                                children: [
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'إدارة حسابات الموظفين',
-                                        style: theme.textTheme.titleMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'إضافة وتعديل وحذف الموظفين (للمدير فقط).',
-                                        style: theme.textTheme.bodySmall,
-                                      ),
-                                    ],
-                                  ),
-                                  const Spacer(),
-                                  ElevatedButton.icon(
-                                    onPressed: () {
-                                      Navigator.pushReplacement(
-                                        context,
-                                        PageRouteBuilder(
-                                          pageBuilder: (context, animation, secondaryAnimation) => const ManageEmployeesPage(),
-                                          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                            return FadeTransition(opacity: animation, child: child);
-                                          },
-                                          transitionDuration: const Duration(milliseconds: 150),
-                                        ),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.people_outline, color: Colors.white),
-                                    label: const Text('إدارة الموظفين'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: ColorPalette.primaryColor,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 32),
 
                           // 5. كارت تسجيل الخروج
                           _buildSectionHeader('تسجيل الخروج', Icons.logout),

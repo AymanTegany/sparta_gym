@@ -10,6 +10,7 @@ import '../cubit/reports_state.dart';
 import '../../../../features/shifts/presentation/cubit/shifts_cubit.dart';
 import '../../../../features/shifts/presentation/cubit/shifts_state.dart';
 import '../../../../features/shifts/presentation/widgets/shift_management_dialog.dart';
+import '../../../shifts/presentation/pages/shift_report_page.dart';
 
 class ReportsPage extends StatefulWidget {
   const ReportsPage({super.key});
@@ -351,6 +352,40 @@ class _ReportsPageState extends State<ReportsPage> {
                     icon: const Icon(Icons.play_arrow_rounded),
                     label: const Text('فتح شفت الآن'),
                     style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final report = await context
+                          .read<ShiftsCubit>()
+                          .getLastClosedShiftReport();
+                      if (report != null && context.mounted) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ShiftReportPage(
+                              report: report,
+                              onNewShift: () {},
+                              isActiveShift: false,
+                            ),
+                          ),
+                        );
+                      } else if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('لا يوجد سجل شفتات سابق لعرضه'),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.history_rounded),
+                    label: const Text('سجل آخر شيفت'),
+                    style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
                         vertical: 12,

@@ -24,9 +24,6 @@ import 'features/diets/presentation/cubit/diet_plans_cubit.dart';
 import 'features/reports/presentation/cubit/reports_cubit.dart';
 import 'features/discount_codes/presentation/cubit/discount_codes_cubit.dart';
 import 'features/shifts/presentation/cubit/shifts_cubit.dart';
-import 'features/shifts/presentation/cubit/shifts_state.dart';
-import 'features/shifts/presentation/pages/shift_login_page.dart';
-import 'features/shifts/presentation/pages/shift_report_page.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'init_dependencies.dart';
 
@@ -92,6 +89,7 @@ void main() async {
           create: (_) => serviceLocator<DiscountCodesCubit>(),
         ),
         BlocProvider<ShiftsCubit>(
+          lazy: false,
           create: (_) => serviceLocator<ShiftsCubit>()
             ..checkActiveShift()
             ..startScheduler(),

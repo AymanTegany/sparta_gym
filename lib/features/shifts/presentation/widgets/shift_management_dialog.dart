@@ -15,7 +15,38 @@ class ShiftManagementDialog extends StatefulWidget {
 
 class _ShiftManagementDialogState extends State<ShiftManagementDialog> {
   List<Employee> _employees = [];
+  List<Map<String, dynamic>> _schedules = [];
   bool _isLoading = true;
+
+  Duration _timeUntilStart(int startHour, int startMinute) {
+    final now = DateTime.now();
+    var startDateTime = DateTime(now.year, now.month, now.day, startHour, startMinute);
+    if (startDateTime.isBefore(now)) {
+      startDateTime = startDateTime.add(const Duration(days: 1));
+    }
+    return startDateTime.difference(now);
+  }
+
+  String _formatDurationArabic(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    
+    if (hours == 0) {
+      return '$minutes دقيقة';
+    } else if (hours == 1) {
+      if (minutes == 0) return 'ساعة واحدة';
+      return 'ساعة و$minutes دقيقة';
+    } else if (hours == 2) {
+      if (minutes == 0) return 'ساعتين';
+      return 'ساعتين و$minutes دقيقة';
+    } else if (hours >= 3 && hours <= 10) {
+      if (minutes == 0) return '$hours ساعات';
+      return '$hours ساعات و$minutes دقيقة';
+    } else {
+      if (minutes == 0) return '$hours ساعة';
+      return '$hours ساعة و$minutes دقيقة';
+    }
+  }
 
   @override
   void initState() {
@@ -27,11 +58,17 @@ class _ShiftManagementDialogState extends State<ShiftManagementDialog> {
     setState(() {
       _isLoading = true;
     });
-    final employees = await context.read<ShiftsCubit>().fetchEmployeesList();
-    setState(() {
-      _employees = employees.where((e) => e.isActive).toList();
-      _isLoading = false;
-    });
+    final shiftsCubit = context.read<ShiftsCubit>();
+    final employees = await shiftsCubit.fetchEmployeesList();
+    final schedules = await shiftsCubit.getScheduledShifts();
+
+    if (mounted) {
+      setState(() {
+        _employees = employees.where((e) => e.isActive).toList();
+        _schedules = schedules;
+        _isLoading = false;
+      });
+    }
   }
 
   void _showAddEmployeeDialog(BuildContext context) {
@@ -40,6 +77,7 @@ class _ShiftManagementDialogState extends State<ShiftManagementDialog> {
     bool isSaving = false;
     TimeOfDay selectedTime = TimeOfDay.now();
     TimeOfDay selectedEndTime = const TimeOfDay(hour: 23, minute: 59);
+    bool isScheduledEnabled = true;
 
     showDialog(
       context: context,
@@ -48,12 +86,17 @@ class _ShiftManagementDialogState extends State<ShiftManagementDialog> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               title: const Row(
                 children: [
                   Icon(Icons.person_add_alt_1_rounded),
                   SizedBox(width: 8),
-                  Text('إضافة شفت جديد', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                    'إضافة شفت جديد',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
               content: Form(
@@ -67,12 +110,16 @@ class _ShiftManagementDialogState extends State<ShiftManagementDialog> {
                         labelText: 'اسم موظف الشيفت',
                         prefixIcon: Icon(Icons.person_outline_rounded),
                       ),
-                      validator: (v) => (v == null || v.isEmpty) ? 'مطلوب' : null,
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'مطلوب' : null,
                     ),
                     const SizedBox(height: 16),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.play_arrow_rounded, color: Colors.green),
+                      leading: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.green,
+                      ),
                       title: const Text('وقت البداية'),
                       subtitle: Text(selectedTime.format(context)),
                       trailing: TextButton(
@@ -90,7 +137,10 @@ class _ShiftManagementDialogState extends State<ShiftManagementDialog> {
                     ),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.stop_rounded, color: Colors.redAccent),
+                      leading: const Icon(
+                        Icons.stop_rounded,
+                        color: Colors.redAccent,
+                      ),
                       title: const Text('وقت النهاية'),
                       subtitle: Text(selectedEndTime.format(context)),
                       trailing: TextButton(
@@ -105,6 +155,17 @@ class _ShiftManagementDialogState extends State<ShiftManagementDialog> {
                         },
                         child: const Text('تغيير'),
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('تفعيل الجدولة التلقائية'),
+                      subtitle: const Text('بدء الشفت تلقائياً عند حلول موعده'),
+                      value: isScheduledEnabled,
+                      onChanged: (val) {
+                        setDialogState(() => isScheduledEnabled = val);
+                      },
+                      activeColor: ColorPalette.primaryColor,
                     ),
                   ],
                 ),
@@ -121,18 +182,18 @@ class _ShiftManagementDialogState extends State<ShiftManagementDialog> {
                           if (formKey.currentState!.validate()) {
                             setDialogState(() => isSaving = true);
                             final shiftsCubit = context.read<ShiftsCubit>();
-                            
+
                             // 1. إضافة الموظف
                             final newEmployee = await shiftsCubit.addEmployee(
                               name: nameCtrl.text,
                               password: '1234',
                             );
-                            
+
                             if (newEmployee == null) {
                               setDialogState(() => isSaving = false);
                               return;
                             }
-                            
+
                             // 2. حفظ الجدولة التلقائية (مع وقت البداية والنهاية)
                             await shiftsCubit.addScheduledShift(
                               employeeId: newEmployee.id!,
@@ -141,22 +202,31 @@ class _ShiftManagementDialogState extends State<ShiftManagementDialog> {
                               startMinute: selectedTime.minute,
                               endHour: selectedEndTime.hour,
                               endMinute: selectedEndTime.minute,
+                              isEnabled: isScheduledEnabled ? 1 : 0,
                             );
-                            
-                            // 3. لو الوقت المحدد فات أو يساوي الوقت الحالي → ابدأ الشفت فوراً
+
+                            // 3. التحقق مما إذا كان الوقت الحالي يقع ضمن فترة الشفت لفتحه فوراً
                             final now = DateTime.now();
-                            final scheduledTime = DateTime(
-                              now.year, now.month, now.day,
-                              selectedTime.hour, selectedTime.minute,
-                            );
-                            
-                            if (!scheduledTime.isAfter(now)) {
+                            final currentMins = now.hour * 60 + now.minute;
+                            final startMins =
+                                selectedTime.hour * 60 + selectedTime.minute;
+
+                            bool isActive = (currentMins == startMins);
+
+                            if (isActive) {
+                              final scheduledTime = DateTime(
+                                now.year,
+                                now.month,
+                                now.day,
+                                selectedTime.hour,
+                                selectedTime.minute,
+                              );
                               await shiftsCubit.startShiftDirectly(
                                 newEmployee,
                                 customStartTime: scheduledTime,
                               );
                             }
-                            
+
                             // 4. إغلاق الدايلوج وتحديث القائمة
                             if (ctx.mounted) {
                               Navigator.pop(ctx);
@@ -165,7 +235,11 @@ class _ShiftManagementDialogState extends State<ShiftManagementDialog> {
                           }
                         },
                   child: isSaving
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('حفظ'),
                 ),
               ],
@@ -176,10 +250,210 @@ class _ShiftManagementDialogState extends State<ShiftManagementDialog> {
     );
   }
 
+  void _showEditEmployeeDialog(
+    BuildContext context,
+    Employee employee,
+    Map<String, dynamic>? schedule,
+  ) {
+    final nameCtrl = TextEditingController(text: employee.name);
+    final formKey = GlobalKey<FormState>();
+
+    TimeOfDay selectedTime = schedule != null
+        ? TimeOfDay(
+            hour: schedule['startHour'] as int,
+            minute: schedule['startMinute'] as int,
+          )
+        : TimeOfDay.now();
+    TimeOfDay selectedEndTime = schedule != null
+        ? TimeOfDay(
+            hour: schedule['endHour'] as int,
+            minute: schedule['endMinute'] as int,
+          )
+        : const TimeOfDay(hour: 23, minute: 59);
+    bool isSaving = false;
+    bool isScheduledEnabled = schedule != null ? (schedule['isEnabled'] == 1) : true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Row(
+                children: [
+                  const Icon(Icons.edit_rounded),
+                  const SizedBox(width: 8),
+                  Text(
+                    'تعديل ${employee.name}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'اسم الموظف',
+                        prefixIcon: Icon(Icons.person_outline_rounded),
+                      ),
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'مطلوب' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.green,
+                      ),
+                      title: const Text('وقت البداية'),
+                      subtitle: Text(selectedTime.format(context)),
+                      trailing: TextButton(
+                        onPressed: () async {
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime: selectedTime,
+                          );
+                          if (time != null) {
+                            setDialogState(() => selectedTime = time);
+                          }
+                        },
+                        child: const Text('تغيير'),
+                      ),
+                    ),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(
+                        Icons.stop_rounded,
+                        color: Colors.redAccent,
+                      ),
+                      title: const Text('وقت النهاية'),
+                      subtitle: Text(selectedEndTime.format(context)),
+                      trailing: TextButton(
+                        onPressed: () async {
+                          final time = await showTimePicker(
+                            context: context,
+                            initialTime: selectedEndTime,
+                          );
+                          if (time != null) {
+                            setDialogState(() => selectedEndTime = time);
+                          }
+                        },
+                        child: const Text('تغيير'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('تفعيل الجدولة التلقائية'),
+                      subtitle: const Text('بدء الشفت تلقائياً عند حلول موعده'),
+                      value: isScheduledEnabled,
+                      onChanged: (val) {
+                        setDialogState(() => isScheduledEnabled = val);
+                      },
+                      activeColor: ColorPalette.primaryColor,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton(
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          if (formKey.currentState!.validate()) {
+                            setDialogState(() => isSaving = true);
+                            final shiftsCubit = context.read<ShiftsCubit>();
+
+                            // Update employee name if changed
+                            if (nameCtrl.text != employee.name) {
+                              await shiftsCubit.updateEmployee(
+                                Employee(
+                                  id: employee.id,
+                                  name: nameCtrl.text,
+                                  role: employee.role,
+                                  isActive: employee.isActive,
+                                ),
+                              );
+                            }
+
+                            await shiftsCubit.updateEmployeeSchedule(
+                              employeeId: employee.id!,
+                              employeeName: nameCtrl.text,
+                              startHour: selectedTime.hour,
+                              startMinute: selectedTime.minute,
+                              endHour: selectedEndTime.hour,
+                              endMinute: selectedEndTime.minute,
+                              isEnabled: isScheduledEnabled ? 1 : 0,
+                            );
+
+                            if (ctx.mounted) {
+                              Navigator.pop(ctx);
+                            }
+                            _loadEmployees();
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('حفظ'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteEmployee(BuildContext context, Employee employee) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذف الموظف'),
+        content: Text(
+          'هل أنت متأكد من حذف الموظف "${employee.name}"؟ سيتم حذف جميع بياناته وجدولة شفتاته.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              setState(() => _isLoading = true);
+              await context.read<ShiftsCubit>().deleteEmployee(employee.id!);
+              _loadEmployees();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
@@ -193,11 +467,18 @@ class _ShiftManagementDialogState extends State<ShiftManagementDialog> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.swap_horiz_rounded, size: 28, color: ColorPalette.primaryColor),
+                    Icon(
+                      Icons.swap_horiz_rounded,
+                      size: 28,
+                      color: ColorPalette.primaryColor,
+                    ),
                     SizedBox(width: 12),
                     Text(
                       'الموظف والشفتات',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -214,96 +495,236 @@ class _ShiftManagementDialogState extends State<ShiftManagementDialog> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _employees.isEmpty
-                      ? const Center(child: Text('لا يوجد موظفين حالياً'))
-                      : BlocBuilder<ShiftsCubit, ShiftsState>(
-                          builder: (context, state) {
-                            final activeShift = context.read<ShiftsCubit>().activeShift;
+                  ? const Center(child: Text('لا يوجد موظفين حالياً'))
+                  : BlocBuilder<ShiftsCubit, ShiftsState>(
+                      builder: (context, state) {
+                        final activeShift = context
+                            .read<ShiftsCubit>()
+                            .activeShift;
 
-                            return ListView.separated(
-                              itemCount: _employees.length,
-                              separatorBuilder: (_, __) => const Divider(),
-                              itemBuilder: (context, index) {
-                                final employee = _employees[index];
-                                final isThisActive = activeShift?.employeeId == employee.id;
-                                final isAnyActive = activeShift != null;
+                        return ListView.separated(
+                          itemCount: _employees.length,
+                          separatorBuilder: (_, __) => const Divider(),
+                          itemBuilder: (context, index) {
+                            final employee = _employees[index];
+                            final isThisActive =
+                                activeShift?.employeeId == employee.id;
+                            final isAnyActive = activeShift != null;
 
-                                return ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: isThisActive ? Colors.orange : Colors.grey.shade200,
-                                    child: Text(
-                                      employee.name.substring(0, 1).toUpperCase(),
-                                      style: TextStyle(
-                                        color: isThisActive ? Colors.white : Colors.black,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                            final scheduleIndex = _schedules.indexWhere(
+                              (s) => s['employeeId'] == employee.id,
+                            );
+                            final schedule = scheduleIndex != -1
+                                ? _schedules[scheduleIndex]
+                                : null;
+
+                            String scheduleText = '';
+                            if (schedule != null) {
+                              final startHour = (schedule['startHour'] as int)
+                                  .toString()
+                                  .padLeft(2, '0');
+                              final startMinute =
+                                  (schedule['startMinute'] as int)
+                                      .toString()
+                                      .padLeft(2, '0');
+                              final endHour = (schedule['endHour'] as int)
+                                  .toString()
+                                  .padLeft(2, '0');
+                              final endMinute = (schedule['endMinute'] as int)
+                                  .toString()
+                                  .padLeft(2, '0');
+                              scheduleText =
+                                  '$startHour:$startMinute - $endHour:$endMinute';
+                            }
+
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isThisActive
+                                    ? Colors.orange
+                                    : Colors.grey.shade200,
+                                child: Text(
+                                  employee.name.substring(0, 1).toUpperCase(),
+                                  style: TextStyle(
+                                    color: isThisActive
+                                        ? Colors.white
+                                        : Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              title: Text(
+                                employee.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isThisActive
+                                        ? 'في الشفت حالياً'
+                                        : 'غير متصل',
+                                    style: TextStyle(
+                                      color: isThisActive
+                                          ? Colors.orange
+                                          : Colors.grey,
                                     ),
                                   ),
-                                  title: Text(
-                                    employee.name,
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  subtitle: Text(
-                                    isThisActive ? 'في الشفت حالياً' : 'غير متصل',
-                                    style: TextStyle(color: isThisActive ? Colors.orange : Colors.grey),
-                                  ),
-                                  trailing: isThisActive
-                                      ? Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            ElevatedButton.icon(
-                                              onPressed: () async {
-                                                final report = await context.read<ShiftsCubit>().getLiveShiftReport();
-                                                if (report != null && context.mounted) {
-                                                  Navigator.push(
-                                                    context,
-                                                    MaterialPageRoute(
-                                                      builder: (_) => ShiftReportPage(
+                                  if (schedule != null) ...[
+                                    Text(
+                                      'الدوام: $scheduleText',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.blueGrey,
+                                      ),
+                                    ),
+                                    if (schedule['isEnabled'] == 1) ...[
+                                      Text(
+                                        isThisActive 
+                                            ? 'الجدولة التلقائية: نشطة'
+                                            : 'الجدولة التلقائية: نشطة (تبدأ بعد ${_formatDurationArabic(_timeUntilStart(schedule['startHour'] as int, schedule['startMinute'] as int))})',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      const Text(
+                                        'الجدولة التلقائية: معطلة',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.red,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ] else ...[
+                                    const Text(
+                                      'الدوام: لم يتم تحديده',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.redAccent,
+                                      ),
+                                    ),
+                                    const Text(
+                                      'الجدولة التلقائية: معطلة (لا توجد مواعيد)',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (!isThisActive) ...[
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        color: Colors.blue,
+                                      ),
+                                      onPressed: () => _showEditEmployeeDialog(
+                                        context,
+                                        employee,
+                                        schedule,
+                                      ),
+                                      tooltip: 'تعديل',
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                      ),
+                                      onPressed: () => _confirmDeleteEmployee(
+                                        context,
+                                        employee,
+                                      ),
+                                      tooltip: 'حذف',
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  if (isThisActive)
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        ElevatedButton.icon(
+                                          onPressed: () async {
+                                            final report = await context
+                                                .read<ShiftsCubit>()
+                                                .getLiveShiftReport();
+                                            if (report != null &&
+                                                context.mounted) {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      ShiftReportPage(
                                                         report: report,
                                                         onNewShift: () {},
                                                         isActiveShift: true,
                                                       ),
-                                                    ),
-                                                  );
-                                                }
-                                              },
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.blueAccent,
-                                                foregroundColor: Colors.white,
-                                              ),
-                                              icon: const Icon(Icons.assessment_outlined, size: 18),
-                                              label: const Text('تقرير الشفت'),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            ElevatedButton.icon(
-                                              onPressed: () {
-                                                context.read<ShiftsCubit>().endShiftDirectly();
-                                              },
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.redAccent,
-                                                foregroundColor: Colors.white,
-                                              ),
-                                              icon: const Icon(Icons.stop_circle_outlined, size: 18),
-                                              label: const Text('إنهاء الشفت'),
-                                            ),
-                                          ],
-                                        )
-                                      : ElevatedButton.icon(
-                                          onPressed: isAnyActive
-                                              ? null
-                                              : () {
-                                                  context.read<ShiftsCubit>().startShiftDirectly(employee);
-                                                },
-                                          icon: const Icon(Icons.play_circle_outline, size: 18),
-                                          label: const Text('بدء الشفت'),
+                                                ),
+                                              );
+                                            }
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.blueAccent,
+                                            foregroundColor: Colors.white,
+                                          ),
+                                          icon: const Icon(
+                                            Icons.assessment_outlined,
+                                            size: 18,
+                                          ),
+                                          label: const Text('تقرير الشفت'),
                                         ),
-                                );
-                              },
+                                        const SizedBox(width: 8),
+                                        ElevatedButton.icon(
+                                          onPressed: () {
+                                            context
+                                                .read<ShiftsCubit>()
+                                                .endShiftDirectly();
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.redAccent,
+                                            foregroundColor: Colors.white,
+                                          ),
+                                          icon: const Icon(
+                                            Icons.stop_circle_outlined,
+                                            size: 18,
+                                          ),
+                                          label: const Text('إنهاء الشفت'),
+                                        ),
+                                      ],
+                                    )
+                                  else
+                                    ElevatedButton.icon(
+                                      onPressed: isAnyActive
+                                          ? null
+                                          : () {
+                                              context
+                                                  .read<ShiftsCubit>()
+                                                  .startShiftDirectly(employee);
+                                            },
+                                      icon: const Icon(
+                                        Icons.play_circle_outline,
+                                        size: 18,
+                                      ),
+                                      label: const Text('بدء الشفت'),
+                                    ),
+                                ],
+                              ),
                             );
                           },
-                        ),
+                        );
+                      },
+                    ),
             ),
             const SizedBox(height: 16),
-            
+
             // زر إضافة شفت جديد
             SizedBox(
               width: double.infinity,
@@ -313,7 +734,9 @@ class _ShiftManagementDialogState extends State<ShiftManagementDialog> {
                 label: const Text('إضافة شفت جديد'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
