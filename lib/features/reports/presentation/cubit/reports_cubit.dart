@@ -15,4 +15,13 @@ class ReportsCubit extends Cubit<ReportsState> {
       (stats) => emit(ReportsLoaded(stats: stats, startDate: startDate, endDate: endDate)),
     );
   }
+
+  Future<void> loadComprehensiveReports(DateTime startDate, DateTime endDate) async {
+    emit(ReportsLoading());
+    final result = await repository.getComprehensiveReport(startDate, endDate);
+    result.fold(
+      (failure) => emit(ReportsError(message: failure.message)),
+      (stats) => emit(ComprehensiveReportsLoaded(stats: stats, startDate: startDate, endDate: endDate)),
+    );
+  }
 }

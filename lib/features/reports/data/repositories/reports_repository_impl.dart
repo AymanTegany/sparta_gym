@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/errors/exception.dart';
 import '../../../../core/errors/failure.dart';
 import '../../domain/entities/report_stats.dart';
+import '../../domain/entities/comprehensive_report_data.dart';
 import '../../domain/repositories/reports_repository.dart';
 import '../datasources/reports_local_data_source.dart';
 
@@ -19,6 +20,18 @@ class ReportsRepositoryImpl implements ReportsRepository {
       return Left(CacheFailure(e.message));
     } catch (e) {
       return Left(CacheFailure('حدث خطأ غير متوقع أثناء جلب التقارير: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ComprehensiveReportData>> getComprehensiveReport(DateTime startDate, DateTime endDate) async {
+    try {
+      final stats = await localDataSource.getComprehensiveReport(startDate, endDate);
+      return Right(stats);
+    } on DatabaseException catch (e) {
+      return Left(CacheFailure(e.message));
+    } catch (e) {
+      return Left(CacheFailure('حدث خطأ غير متوقع أثناء جلب تقرير الإيرادات الشامل: $e'));
     }
   }
 }

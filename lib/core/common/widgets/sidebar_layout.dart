@@ -18,6 +18,7 @@ import '../../../features/inventory/presentation/pages/inventory_page.dart';
 import '../../../features/pos/presentation/pages/pos_page.dart';
 import '../../../features/diets/presentation/pages/diet_plans_page.dart';
 import '../../../features/reports/presentation/pages/reports_page.dart';
+import '../../../features/reports/presentation/pages/comprehensive_reports_page.dart';
 import '../../../features/shifts/presentation/cubit/shifts_cubit.dart';
 import '../../../features/shifts/presentation/cubit/shifts_state.dart';
 import '../../../features/shifts/presentation/pages/manage_employees_page.dart';
@@ -128,6 +129,9 @@ class _SidebarLayoutState extends State<SidebarLayout> {
         break;
       case 'reports':
         targetPage = const ReportsPage();
+        break;
+      case 'comprehensive_reports':
+        targetPage = const ComprehensiveReportsPage();
         break;
       case 'employees':
         targetPage = const ManageEmployeesPage();
@@ -464,6 +468,13 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                 ),
                 _buildNavItem(
                   context: context,
+                  icon: Icons.pie_chart_rounded,
+                  title: 'التقارير الشاملة',
+                  page: 'comprehensive_reports',
+                  theme: theme,
+                ),
+                _buildNavItem(
+                  context: context,
                   icon: Icons.settings_rounded,
                   title: 'إعدادات النظام',
                   page: 'settings',
@@ -765,6 +776,12 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                             title: const Text('تقرير الشيفت'),
                             selected: widget.activePage == 'reports',
                             onTap: () => _navigateTo(context, 'reports'),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.pie_chart_rounded),
+                            title: const Text('التقارير الشاملة'),
+                            selected: widget.activePage == 'comprehensive_reports',
+                            onTap: () => _navigateTo(context, 'comprehensive_reports'),
                           ),
                           ListTile(
                             leading: const Icon(Icons.settings_rounded),

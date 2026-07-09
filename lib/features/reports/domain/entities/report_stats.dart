@@ -3,12 +3,14 @@ class ReportPaymentItem {
   final String notes;
   final double amount;
   final String date;
+  final String paymentMethod;
 
   const ReportPaymentItem({
     required this.memberName,
     required this.notes,
     required this.amount,
     required this.date,
+    this.paymentMethod = 'نقدي',
   });
 }
 

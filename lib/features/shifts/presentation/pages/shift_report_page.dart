@@ -68,15 +68,15 @@ class ShiftReportPage extends StatelessWidget {
                   _buildStatsGrid(theme, isDark, countFmt),
                   const SizedBox(height: 32),
 
-                  // ── زر بدء شفت جديد أو إغلاق ──
+                  // ── زر العودة أو إغلاق ──
                   SizedBox(
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton.icon(
-                      onPressed: isActiveShift ? () => Navigator.pop(context) : onNewShift,
-                      icon: Icon(isActiveShift ? Icons.close_rounded : Icons.play_arrow_rounded, size: 24),
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(isActiveShift ? Icons.close_rounded : Icons.arrow_back_rounded, size: 24),
                       label: Text(
-                        isActiveShift ? 'إغلاق التقرير' : 'بدء شفت جديد',
+                        isActiveShift ? 'إغلاق التقرير' : 'رجوع',
                         style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,

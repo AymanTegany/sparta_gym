@@ -1,9 +1,15 @@
+import 'package:sqflite/sqflite.dart' show Database;
 import '../../../../core/database/database_helper.dart';
 import '../../../../core/errors/exception.dart';
 import '../../domain/entities/report_stats.dart';
+import '../../domain/entities/comprehensive_report_data.dart';
 
 abstract class ReportsLocalDataSource {
   Future<ReportStats> getReportStats(DateTime startDate, DateTime endDate);
+  Future<ComprehensiveReportData> getComprehensiveReport(
+    DateTime startDate,
+    DateTime endDate,
+  );
 }
 
 class ReportsLocalDataSourceImpl implements ReportsLocalDataSource {
@@ -12,10 +18,13 @@ class ReportsLocalDataSourceImpl implements ReportsLocalDataSource {
   ReportsLocalDataSourceImpl({required this.databaseHelper});
 
   @override
-  Future<ReportStats> getReportStats(DateTime startDate, DateTime endDate) async {
+  Future<ReportStats> getReportStats(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
     try {
       final db = await databaseHelper.database;
-      
+
       final startStr = startDate.toIso8601String();
       final endStr = endDate.toIso8601String();
 
@@ -23,13 +32,16 @@ class ReportsLocalDataSourceImpl implements ReportsLocalDataSource {
       // Wait, let's use notes to filter. Single session is usually a membership named "تمرينة واحدة".
       // When a membership is "تمرينة واحدة", the payment notes might say "دفعة أولى لاشتراك تمرينة واحدة".
       // We will separate single sessions from new members/renewals.
-      
-      final paymentsResult = await db.rawQuery('''
+
+      final paymentsResult = await db.rawQuery(
+        '''
         SELECT p.amount, p.paymentDate, p.notes, m.fullName, m.membershipType 
         FROM payments p 
         LEFT JOIN members m ON p.memberId = m.memberId
         WHERE p.paymentDate >= ? AND p.paymentDate <= ?
-      ''', [startStr, endStr]);
+      ''',
+        [startStr, endStr],
+      );
 
       List<ReportPaymentItem> newMembers = [];
       List<ReportPaymentItem> renewals = [];
@@ -49,7 +61,12 @@ class ReportsLocalDataSourceImpl implements ReportsLocalDataSource {
           date: date,
         );
 
-        if (membershipType.contains('تمرينة') || membershipType.contains('حصة') || membershipType.contains('يوم') || notes.contains('حصة') || notes.contains('تمرينة') || notes.contains('يوم')) {
+        if (membershipType.contains('تمرينة') ||
+            membershipType.contains('حصة') ||
+            membershipType.contains('يوم') ||
+            notes.contains('حصة') ||
+            notes.contains('تمرينة') ||
+            notes.contains('يوم')) {
           singleSessions.add(item);
         } else if (notes.contains('تجديد')) {
           renewals.add(item);
@@ -62,11 +79,14 @@ class ReportsLocalDataSourceImpl implements ReportsLocalDataSource {
       }
 
       // 4. Expenses
-      final expensesResult = await db.rawQuery('''
+      final expensesResult = await db.rawQuery(
+        '''
         SELECT title, category, amount, date, notes 
         FROM expenses 
         WHERE date >= ? AND date <= ?
-      ''', [startStr, endStr]);
+      ''',
+        [startStr, endStr],
+      );
 
       List<ReportExpenseItem> expenses = expensesResult.map((row) {
         return ReportExpenseItem(
@@ -86,11 +106,14 @@ class ReportsLocalDataSourceImpl implements ReportsLocalDataSource {
       final totalAttendance = attendanceResult.first['count'] as int? ?? 0;
 
       // 6. Unpaid Subscriptions (اشتراكات على الحساب)
-      final unpaidResult = await db.rawQuery('''
+      final unpaidResult = await db.rawQuery(
+        '''
         SELECT fullName, membershipType, remainingAmount, startDate 
         FROM members 
         WHERE startDate >= ? AND startDate <= ? AND remainingAmount > 0
-      ''', [startStr, endStr]);
+      ''',
+        [startStr, endStr],
+      );
 
       List<ReportPaymentItem> unpaidSubscriptions = unpaidResult.map((row) {
         return ReportPaymentItem(
@@ -102,12 +125,16 @@ class ReportsLocalDataSourceImpl implements ReportsLocalDataSource {
       }).toList();
 
       // 7. Inventory Sales (مبيعات المخزون)
-      final inventoryResult = await db.rawQuery('''
+      final inventoryResult = await db.rawQuery(
+        '''
         SELECT SUM(finalAmount) as total 
         FROM pos_sales 
         WHERE date >= ? AND date <= ?
-      ''', [startStr, endStr]);
-      final inventorySalesRevenue = (inventoryResult.first['total'] as num?)?.toDouble() ?? 0.0;
+      ''',
+        [startStr, endStr],
+      );
+      final inventorySalesRevenue =
+          (inventoryResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
       return ReportStats(
         newMembers: newMembers,
@@ -122,4 +149,144 @@ class ReportsLocalDataSourceImpl implements ReportsLocalDataSource {
       throw DatabaseException('فشل في جلب إحصائيات التقارير: $e');
     }
   }
+
+  @override
+  Future<ComprehensiveReportData> getComprehensiveReport(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    try {
+      final db = await databaseHelper.database;
+
+      // حساب الفترة السابقة بنفس الطول
+      final duration = endDate.difference(startDate);
+      final prevEndDate = startDate;
+      final prevStartDate = startDate.subtract(duration);
+
+      final currentData = await _fetchDataForPeriod(db, startDate, endDate);
+      final previousData = await _fetchDataForPeriod(
+        db,
+        prevStartDate,
+        prevEndDate,
+      );
+
+      // جلب جميع المستحقات المتأخرة (الأعضاء الذين لديهم مبالغ متبقية)
+      final overdueResult = await db.rawQuery('''
+        SELECT memberId, fullName, phoneNumber, membershipType, remainingAmount, startDate, endDate 
+        FROM members 
+        WHERE remainingAmount > 0
+        ORDER BY remainingAmount DESC
+      ''');
+
+      List<OverdueMemberItem> overdueMembers = overdueResult.map((row) {
+        return OverdueMemberItem(
+          memberId: row['memberId'] as String? ?? '',
+          fullName: row['fullName'] as String? ?? 'غير معروف',
+          phoneNumber: row['phoneNumber'] as String? ?? '',
+          membershipType: row['membershipType'] as String? ?? '',
+          remainingAmount: (row['remainingAmount'] as num?)?.toDouble() ?? 0.0,
+          startDate: row['startDate'] as String? ?? '',
+          endDate: row['endDate'] as String? ?? '',
+        );
+      }).toList();
+
+      return ComprehensiveReportData(
+        currentPayments: currentData.payments,
+        currentExpenses: currentData.expenses,
+        currentPosSales: currentData.posSales,
+        previousPayments: previousData.payments,
+        previousExpenses: previousData.expenses,
+        previousPosSales: previousData.posSales,
+        overdueMembers: overdueMembers,
+      );
+    } catch (e) {
+      throw DatabaseException('فشل في جلب تقرير الإيرادات الشامل: $e');
+    }
+  }
+
+  Future<_PeriodData> _fetchDataForPeriod(
+    Database db,
+    DateTime start,
+    DateTime end,
+  ) async {
+    final startStr = start.toIso8601String();
+    final endStr = end.toIso8601String();
+
+    // 1. المدفوعات (إيرادات الاشتراكات والتجديدات)
+    final paymentsResult = await db.rawQuery(
+      '''
+      SELECT p.amount, p.paymentDate, p.notes, p.paymentMethod, m.fullName, m.membershipType 
+      FROM payments p 
+      LEFT JOIN members m ON p.memberId = m.memberId
+      WHERE p.paymentDate >= ? AND p.paymentDate <= ?
+    ''',
+      [startStr, endStr],
+    );
+
+    List<ReportPaymentItem> payments = paymentsResult.map((row) {
+      return ReportPaymentItem(
+        memberName: row['fullName'] as String? ?? 'مستخدم غير معروف',
+        notes: row['notes'] as String? ?? '',
+        amount: (row['amount'] as num?)?.toDouble() ?? 0.0,
+        date: row['paymentDate'] as String? ?? '',
+        paymentMethod: row['paymentMethod'] as String? ?? 'نقدي',
+      );
+    }).toList();
+
+    // 2. المصروفات
+    final expensesResult = await db.rawQuery(
+      '''
+      SELECT title, category, amount, date, notes 
+      FROM expenses 
+      WHERE date >= ? AND date <= ?
+    ''',
+      [startStr, endStr],
+    );
+
+    List<ReportExpenseItem> expenses = expensesResult.map((row) {
+      return ReportExpenseItem(
+        title: row['title'] as String? ?? '',
+        category: row['category'] as String? ?? '',
+        amount: (row['amount'] as num?)?.toDouble() ?? 0.0,
+        date: row['date'] as String? ?? '',
+        notes: row['notes'] as String? ?? '',
+      );
+    }).toList();
+
+    // 3. مبيعات الـ POS
+    final posSalesResult = await db.rawQuery(
+      '''
+      SELECT finalAmount, date, paymentMethod 
+      FROM pos_sales 
+      WHERE date >= ? AND date <= ?
+    ''',
+      [startStr, endStr],
+    );
+
+    List<ReportPosSaleItem> posSales = posSalesResult.map((row) {
+      return ReportPosSaleItem(
+        finalAmount: (row['finalAmount'] as num?)?.toDouble() ?? 0.0,
+        date: row['date'] as String? ?? '',
+        paymentMethod: row['paymentMethod'] as String? ?? 'كاش',
+      );
+    }).toList();
+
+    return _PeriodData(
+      payments: payments,
+      expenses: expenses,
+      posSales: posSales,
+    );
+  }
+}
+
+class _PeriodData {
+  final List<ReportPaymentItem> payments;
+  final List<ReportExpenseItem> expenses;
+  final List<ReportPosSaleItem> posSales;
+
+  const _PeriodData({
+    required this.payments,
+    required this.expenses,
+    required this.posSales,
+  });
 }
