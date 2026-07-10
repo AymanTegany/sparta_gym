@@ -15,4 +15,7 @@ abstract class AttendanceRepository {
 
   /// جلب إحصائيات الحضور
   Future<Either<Failure, Map<String, dynamic>>> getAttendanceStats();
+  Future<Either<Failure, void>> autoCheckoutOutdatedAttendances(int maxHours);
+  Future<Either<Failure, bool>> isMemberCheckedIn(String barcodeOrPhone);
+  Future<Either<Failure, List<Attendance>>> getMemberAttendance(String memberId);
 }

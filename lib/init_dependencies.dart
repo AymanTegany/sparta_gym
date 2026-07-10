@@ -42,6 +42,9 @@ import 'features/attendance/domain/usecases/check_in_member.dart';
 import 'features/attendance/domain/usecases/check_out_member.dart';
 import 'features/attendance/domain/usecases/get_daily_attendance.dart';
 import 'features/attendance/domain/usecases/get_attendance_stats.dart';
+import 'features/attendance/domain/usecases/get_member_attendance.dart';
+import 'features/attendance/domain/usecases/auto_checkout_outdated.dart';
+import 'features/attendance/domain/usecases/check_if_checked_in.dart';
 import 'features/attendance/presentation/cubit/attendance_cubit.dart';
 
 // Settings Feature Imports
@@ -332,6 +335,9 @@ void _initAttendance() {
   serviceLocator.registerLazySingleton(() => CheckOutMemberUseCase(serviceLocator()));
   serviceLocator.registerLazySingleton(() => GetDailyAttendanceUseCase(serviceLocator()));
   serviceLocator.registerLazySingleton(() => GetAttendanceStatsUseCase(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => GetMemberAttendanceUseCase(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => AutoCheckoutOutdatedUseCase(serviceLocator()));
+  serviceLocator.registerLazySingleton(() => CheckIfCheckedInUseCase(serviceLocator()));
 
   // 4. Cubit
   serviceLocator.registerFactory<AttendanceCubit>(
@@ -341,6 +347,8 @@ void _initAttendance() {
       getDailyAttendance: serviceLocator(),
       getAttendanceStats: serviceLocator(),
       searchMembers: serviceLocator(),
+      autoCheckoutOutdated: serviceLocator(),
+      checkIfCheckedIn: serviceLocator(),
     ),
   );
 }

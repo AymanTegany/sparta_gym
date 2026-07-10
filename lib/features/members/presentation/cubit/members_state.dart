@@ -8,6 +8,7 @@ enum MemberFilterType {
   expired,
   expiringSoon,
   inDebt,
+  singleSession,
 }
 
 /// إحصائيات العملاء

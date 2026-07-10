@@ -11,6 +11,12 @@ import '../../../payments/domain/entities/payment_entity.dart';
 import '../../../diets/domain/entities/diet_plan.dart';
 import '../../../diets/presentation/cubit/diet_plans_cubit.dart';
 import '../../../diets/presentation/cubit/diet_plans_state.dart';
+import '../../../../init_dependencies.dart';
+import '../../../attendance/domain/usecases/get_member_attendance.dart';
+import '../../../attendance/domain/entities/attendance_entity.dart';
+import '../../../memberships/presentation/cubit/memberships_cubit.dart';
+import '../../../memberships/presentation/cubit/memberships_state.dart';
+import '../../../memberships/domain/entities/membership_entity.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// ديالوج تفاصيل العميل
@@ -333,18 +339,7 @@ class MemberDetailsDialog extends StatelessWidget {
       theme: theme,
       title: 'سجل الحضور',
       icon: Icons.fact_check_outlined,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Text(
-            'لا يوجد سجل حضور بعد',
-            style: TextStyle(
-              color: theme.textTheme.bodySmall?.color,
-              fontSize: 14,
-            ),
-          ),
-        ),
-      ),
+      child: MemberAttendanceSection(member: member),
     );
   }
 
@@ -706,6 +701,176 @@ class _MemberPaymentsSectionState extends State<MemberPaymentsSection> {
               ),
             );
           },
+        );
+      },
+    );
+  }
+}
+
+class MemberAttendanceSection extends StatefulWidget {
+  final Member member;
+
+  const MemberAttendanceSection({super.key, required this.member});
+
+  @override
+  State<MemberAttendanceSection> createState() => _MemberAttendanceSectionState();
+}
+
+class _MemberAttendanceSectionState extends State<MemberAttendanceSection> {
+  List<Attendance>? attendances;
+  String? error;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAttendance();
+  }
+
+  Future<void> _loadAttendance() async {
+    final useCase = serviceLocator<GetMemberAttendanceUseCase>();
+    final result = await useCase(widget.member.memberId);
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+        result.fold(
+          (l) => error = l.message,
+          (r) => attendances = r,
+        );
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    if (isLoading) {
+      return const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()));
+    }
+
+    if (error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            error!,
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+    }
+
+    final list = attendances ?? [];
+    if (list.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Text(
+            'لا يوجد سجل حضور بعد',
+            style: TextStyle(
+              color: theme.textTheme.bodySmall?.color,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return BlocBuilder<MembershipsCubit, MembershipsState>(
+      builder: (context, mState) {
+        int? visitsLimit;
+        if (mState is MembershipsLoaded) {
+          for (var m in mState.memberships) {
+            if (m.name == widget.member.membershipType) {
+              visitsLimit = m.visitsLimit;
+              break;
+            }
+          }
+        }
+
+        // Count how many attendances since the current subscription started
+        final startDate = DateTime.tryParse(widget.member.startDate);
+        int validAttendances = 0;
+        if (startDate != null && visitsLimit != null) {
+           validAttendances = list.where((a) {
+             final checkIn = DateTime.tryParse(a.checkInTime);
+             return checkIn != null && (checkIn.isAfter(startDate) || checkIn.isAtSameMomentAs(startDate));
+           }).length;
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (visitsLimit != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: ColorPalette.primaryLight.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: ColorPalette.primaryLight.withValues(alpha: 0.5)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.confirmation_number_outlined, color: ColorPalette.primaryColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      'الزيارات المستخدمة: $validAttendances من أصل $visitsLimit',
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: ColorPalette.primaryColor),
+                    ),
+                  ],
+                ),
+              ),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: list.length,
+              separatorBuilder: (c, i) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final a = list[index];
+                final checkInDate = DateTime.tryParse(a.checkInTime);
+                final dateStr = checkInDate != null ? DateFormat('yyyy/MM/dd').format(checkInDate) : a.checkInTime;
+                final timeStr = checkInDate != null ? DateFormat('hh:mm a').format(checkInDate) : '';
+                
+                String checkOutStr = 'لم يتم تسجيل الخروج';
+                if (a.checkOutTime != null) {
+                  final checkOutDate = DateTime.tryParse(a.checkOutTime!);
+                  if (checkOutDate != null) {
+                    checkOutStr = DateFormat('hh:mm a').format(checkOutDate);
+                  } else {
+                    checkOutStr = a.checkOutTime!;
+                  }
+                }
+                
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: ColorPalette.successColor.withValues(alpha: 0.2),
+                    child: const Icon(Icons.check, color: ColorPalette.successColor, size: 20),
+                  ),
+                  title: Text(
+                    'التاريخ: $dateStr',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  subtitle: Text(
+                    'دخول: $timeStr  |  خروج: $checkOutStr',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  trailing: a.durationMinutes != null
+                      ? Text(
+                          '${a.durationMinutes} دقيقة',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: theme.textTheme.bodySmall?.color,
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                );
+              },
+            ),
+          ],
         );
       },
     );

@@ -128,11 +128,13 @@ class MembersCubit extends Cubit<MembersState> {
       case MemberFilterType.active:
         return members.where((m) => m.isActive).toList();
       case MemberFilterType.expired:
-        return members.where((m) => !m.isActive).toList();
+        return members.where((m) => !m.isActive && m.membershipType != 'تمرينة واحدة').toList();
       case MemberFilterType.expiringSoon:
         return members.where((m) => m.isExpiringSoon).toList();
       case MemberFilterType.inDebt:
         return members.where((m) => m.hasDebt).toList();
+      case MemberFilterType.singleSession:
+        return members.where((m) => m.membershipType == 'تمرينة واحدة').toList();
     }
   }
 
@@ -279,7 +281,7 @@ class MembersCubit extends Cubit<MembersState> {
   MembersStats _calculateStats(List<Member> members) {
     final totalMembers = members.length;
     final activeMembers = members.where((m) => m.isActive).length;
-    final expiredMembers = members.where((m) => !m.isActive).length;
+    final expiredMembers = members.where((m) => !m.isActive && m.membershipType != 'تمرينة واحدة').length;
 
     // حساب الإيرادات الشهرية (مجموع المدفوعات للأعضاء الذين بدأوا هذا الشهر)
     final now = DateTime.now();

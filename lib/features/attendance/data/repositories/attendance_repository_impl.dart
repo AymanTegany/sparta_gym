@@ -58,4 +58,40 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       return Left(CacheFailure('فشل في جلب إحصائيات الحضور: $e'));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> autoCheckoutOutdatedAttendances(int maxHours) async {
+    try {
+      await localDataSource.autoCheckoutOutdatedAttendances(maxHours);
+      return const Right(null);
+    } on DatabaseException catch (e) {
+      return Left(CacheFailure(e.message));
+    } catch (e) {
+      return Left(CacheFailure('فشل في إنهاء الجلسات المعلقة: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> isMemberCheckedIn(String barcodeOrPhone) async {
+    try {
+      final result = await localDataSource.isMemberCheckedIn(barcodeOrPhone);
+      return Right(result);
+    } on DatabaseException catch (e) {
+      return Left(CacheFailure(e.message));
+    } catch (e) {
+      return Left(CacheFailure('فشل في التحقق من حالة حضور العضو: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<Attendance>>> getMemberAttendance(String memberId) async {
+    try {
+      final result = await localDataSource.getMemberAttendance(memberId);
+      return Right(result);
+    } on DatabaseException catch (e) {
+      return Left(CacheFailure(e.message));
+    } catch (e) {
+      return Left(CacheFailure('فشل في جلب سجل حضور العضو: $e'));
+    }
+  }
 }

@@ -8,6 +8,9 @@ abstract class AttendanceLocalDataSource {
   Future<AttendanceModel> checkOutMember(String barcodeOrPhone);
   Future<List<AttendanceModel>> getDailyAttendance(String dateStr);
   Future<Map<String, dynamic>> getAttendanceStats();
+  Future<void> autoCheckoutOutdatedAttendances(int maxHours);
+  Future<bool> isMemberCheckedIn(String barcodeOrPhone);
+  Future<List<AttendanceModel>> getMemberAttendance(String memberId);
 }
 
 /// تنفيذ مصدر بيانات الحضور والانصراف باستخدام SQLite
@@ -42,6 +45,33 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
       final now = DateTime.now();
       if (endDate == null || endDate.isBefore(now)) {
         throw const DatabaseException('اشتراك العضو منتهي الصلاحية! لا يمكن تسجيل الحضور.');
+      }
+
+      final String startDateStr = memberData['startDate'] as String;
+      final String membershipType = memberData['membershipType'] as String;
+
+      // 2.5 التحقق من عدد زيارات الباقة المشترك فيها العضو
+      final membershipResults = await db.query(
+        'memberships',
+        where: 'name = ?',
+        whereArgs: [membershipType],
+        limit: 1,
+      );
+
+      if (membershipResults.isNotEmpty) {
+        final membershipData = membershipResults.first;
+        final int? visitsLimit = membershipData['visitsLimit'] as int?;
+        if (visitsLimit != null) {
+          final attendanceCountResult = await db.rawQuery('''
+            SELECT COUNT(*) as count FROM attendance 
+            WHERE memberId = ? AND checkInTime >= ?
+          ''', [memberId, startDateStr]);
+          
+          final int attendanceCount = attendanceCountResult.first['count'] as int? ?? 0;
+          if (attendanceCount >= visitsLimit) {
+            throw const DatabaseException('عذراً، لقد انتهى عدد الزيارات المسموح بها في الباقة المشترك فيها العضو!');
+          }
+        }
       }
 
       // 3. التحقق مما إذا كان العضو مسجلاً حضوراً حالياً (ولم يسجل خروجاً بعد)
@@ -215,6 +245,88 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
       };
     } catch (e) {
       throw DatabaseException('فشل في جلب إحصائيات الحضور: $e');
+    }
+  }
+
+  @override
+  Future<void> autoCheckoutOutdatedAttendances(int maxHours) async {
+    try {
+      final db = await databaseHelper.database;
+      final now = DateTime.now();
+
+      final activeCheckIns = await db.query(
+        'attendance',
+        where: 'checkOutTime IS NULL',
+      );
+
+      for (var record in activeCheckIns) {
+        final checkInTimeStr = record['checkInTime'] as String;
+        final checkInTime = DateTime.tryParse(checkInTimeStr);
+        
+        if (checkInTime != null && now.difference(checkInTime).inHours >= maxHours) {
+          final recordId = record['id'] as int;
+          // Set checkout time to check-in time + maxHours
+          final checkOutTime = checkInTime.add(Duration(hours: maxHours));
+          final duration = maxHours * 60; 
+
+          await db.update(
+            'attendance',
+            {
+              'checkOutTime': checkOutTime.toIso8601String(),
+              'durationMinutes': duration,
+            },
+            where: 'id = ?',
+            whereArgs: [recordId],
+          );
+        }
+      }
+    } catch (e) {
+      throw DatabaseException('فشل في إنهاء الجلسات المعلقة: $e');
+    }
+  }
+
+  @override
+  Future<bool> isMemberCheckedIn(String barcodeOrPhone) async {
+    try {
+      final db = await databaseHelper.database;
+      final memberResults = await db.query(
+        'members',
+        where: 'memberId = ? OR phoneNumber = ?',
+        whereArgs: [barcodeOrPhone, barcodeOrPhone],
+        limit: 1,
+      );
+
+      if (memberResults.isEmpty) return false;
+
+      final memberId = memberResults.first['memberId'] as String;
+      final activeCheckIn = await db.query(
+        'attendance',
+        where: 'memberId = ? AND checkOutTime IS NULL',
+        whereArgs: [memberId],
+        limit: 1,
+      );
+
+      return activeCheckIn.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  @override
+  Future<List<AttendanceModel>> getMemberAttendance(String memberId) async {
+    try {
+      final db = await databaseHelper.database;
+      final results = await db.rawQuery('''
+        SELECT a.*, m.fullName, m.phoneNumber 
+        FROM attendance a
+        LEFT JOIN members m ON a.memberId = m.memberId
+        WHERE a.memberId = ?
+        ORDER BY a.checkInTime DESC
+      ''', [memberId]);
+
+      return results.map((map) => AttendanceModel.fromMap(map)).toList();
+    } catch (e) {
+      throw DatabaseException('فشل في جلب سجل حضور العضو: $e');
     }
   }
 }

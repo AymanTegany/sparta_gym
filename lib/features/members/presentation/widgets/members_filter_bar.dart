@@ -68,6 +68,15 @@ class MembersFilterBar extends StatelessWidget {
             activeColor: ColorPalette.debtStatus,
             isDark: isDark,
           ),
+          const SizedBox(width: 8),
+          _buildFilterChip(
+            context,
+            label: 'تمرينة واحدة',
+            filterType: MemberFilterType.singleSession,
+            icon: Icons.bolt_rounded,
+            activeColor: ColorPalette.primaryColor,
+            isDark: isDark,
+          ),
         ],
       ),
     );

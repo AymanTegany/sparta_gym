@@ -7,6 +7,8 @@ import '../../domain/usecases/check_in_member.dart';
 import '../../domain/usecases/check_out_member.dart';
 import '../../domain/usecases/get_daily_attendance.dart';
 import '../../domain/usecases/get_attendance_stats.dart';
+import '../../domain/usecases/auto_checkout_outdated.dart';
+import '../../domain/usecases/check_if_checked_in.dart';
 import 'attendance_state.dart';
 
 class AttendanceCubit extends Cubit<AttendanceState> {
@@ -15,6 +17,8 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   final GetDailyAttendanceUseCase _getDailyAttendance;
   final GetAttendanceStatsUseCase _getAttendanceStats;
   final SearchMembers _searchMembers;
+  final AutoCheckoutOutdatedUseCase _autoCheckoutOutdated;
+  final CheckIfCheckedInUseCase _checkIfCheckedIn;
 
   AttendanceCubit({
     required CheckInMemberUseCase checkInMember,
@@ -22,11 +26,15 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     required GetDailyAttendanceUseCase getDailyAttendance,
     required GetAttendanceStatsUseCase getAttendanceStats,
     required SearchMembers searchMembers,
+    required AutoCheckoutOutdatedUseCase autoCheckoutOutdated,
+    required CheckIfCheckedInUseCase checkIfCheckedIn,
   })  : _checkInMember = checkInMember,
         _checkOutMember = checkOutMember,
         _getDailyAttendance = getDailyAttendance,
         _getAttendanceStats = getAttendanceStats,
         _searchMembers = searchMembers,
+        _autoCheckoutOutdated = autoCheckoutOutdated,
+        _checkIfCheckedIn = checkIfCheckedIn,
         super(AttendanceInitial());
 
   /// تحميل سجل حضور اليوم والإحصائيات
@@ -65,13 +73,12 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     } else {
       // وضع تلقائي: التحقق مما إذا كان العضو مسجلاً دخولاً حالياً ولم يسجل خروجاً
       bool isAlreadyIn = false;
-      if (state is AttendanceLoaded) {
-        final loaded = state as AttendanceLoaded;
-        isAlreadyIn = loaded.dailyAttendance.any((a) =>
-            (a.memberId == barcodeOrPhone.trim() ||
-                a.memberPhone == barcodeOrPhone.trim()) &&
-            a.checkOutTime == null);
-      }
+      final result = await _checkIfCheckedIn(barcodeOrPhone.trim());
+      result.fold(
+        (failure) => isAlreadyIn = false,
+        (checkedIn) => isAlreadyIn = checkedIn,
+      );
+      
       if (isAlreadyIn) {
         await checkOut(barcodeOrPhone);
       } else {
@@ -138,30 +145,10 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
     final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-    var dailyResult = await _getDailyAttendance(dateStr);
-    bool hasAutoCheckedOut = false;
-
     // تسجيل الخروج التلقائي بعد 6 ساعات
-    await dailyResult.fold(
-      (failure) async {},
-      (dailyList) async {
-        final now = DateTime.now();
-        for (var attendance in dailyList) {
-          if (attendance.checkOutTime == null) {
-            final inTime = DateTime.tryParse(attendance.checkInTime);
-            if (inTime != null && now.difference(inTime).inHours >= 6) {
-              await _checkOutMember(attendance.memberId);
-              hasAutoCheckedOut = true;
-            }
-          }
-        }
-      },
-    );
+    await _autoCheckoutOutdated(6);
 
-    if (hasAutoCheckedOut) {
-      dailyResult = await _getDailyAttendance(dateStr);
-    }
-
+    final dailyResult = await _getDailyAttendance(dateStr);
     final statsResult = await _getAttendanceStats(NoParams());
 
     dailyResult.fold(

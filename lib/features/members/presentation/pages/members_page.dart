@@ -5,13 +5,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/color_palette.dart';
 import '../../../../core/common/widgets/sidebar_layout.dart';
-import '../../../../init_dependencies.dart';
 import '../../domain/entities/member_entity.dart';
 import '../cubit/members_cubit.dart';
 import '../cubit/members_state.dart';
 import '../widgets/add_member_dialog.dart';
 import '../widgets/member_details_dialog.dart';
-import '../../../../core/common/widgets/global_scanner_listener.dart';
 import '../widgets/renew_subscription_dialog.dart';
 import '../../../payments/presentation/cubit/payments_cubit.dart';
 import '../../../payments/domain/entities/payment_entity.dart';
@@ -543,9 +541,10 @@ class _MembersPageState extends State<MembersPage> {
     return {
       MemberFilterType.all: members.length,
       MemberFilterType.active: members.where((m) => m.isActive).length,
-      MemberFilterType.expired: members.where((m) => !m.isActive).length,
+      MemberFilterType.expired: members.where((m) => !m.isActive && m.membershipType != 'تمرينة واحدة').length,
       MemberFilterType.expiringSoon: members.where((m) => m.isExpiringSoon).length,
       MemberFilterType.inDebt: members.where((m) => m.hasDebt).length,
+      MemberFilterType.singleSession: members.where((m) => m.membershipType == 'تمرينة واحدة').length,
     };
   }
 
