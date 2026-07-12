@@ -18,7 +18,7 @@ class DatabaseHelper {
   // ==========================================
   // 2. إعدادات قاعدة البيانات
   // ==========================================
-  static const int _databaseVersion = 3;
+  static const int _databaseVersion = 4;
   static const String _databaseName = 'sparta_gym_v1.db';
 
   // ==========================================
@@ -121,6 +121,24 @@ class DatabaseHelper {
           FOREIGN KEY(employeeId) REFERENCES employees(id) ON DELETE CASCADE
         )
       ''');
+    }
+
+    if (oldVersion < 4) {
+      // ── الترقية إلى v4: إضافة الأعمدة المفقودة في جدول العملاء ──
+      
+      // التأكد من إنشاء أي جداول جديدة
+      await _createAllTables(db);
+      await _createAllIndexes(db);
+
+      try {
+        await db.execute('ALTER TABLE members ADD COLUMN memberPhotoPath TEXT');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE members ADD COLUMN dietPlanId INTEGER');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE members ADD COLUMN additionalServicesIds TEXT');
+      } catch (_) {}
     }
   }
 

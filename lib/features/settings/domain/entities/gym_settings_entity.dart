@@ -8,6 +8,7 @@ class GymSettings extends Equatable {
   final String commercialRegister;
   final String themeMode; // 'light' or 'dark'
   final String logoPath;
+  final String defaultA4Printer;
 
   const GymSettings({
     required this.gymName,
@@ -16,6 +17,7 @@ class GymSettings extends Equatable {
     required this.commercialRegister,
     required this.themeMode,
     required this.logoPath,
+    required this.defaultA4Printer,
   });
 
   /// قيم افتراضية للإعدادات عند أول تشغيل
@@ -27,6 +29,7 @@ class GymSettings extends Equatable {
       commercialRegister: '',
       themeMode: 'light',
       logoPath: '',
+      defaultA4Printer: '',
     );
   }
 
@@ -37,6 +40,7 @@ class GymSettings extends Equatable {
     String? commercialRegister,
     String? themeMode,
     String? logoPath,
+    String? defaultA4Printer,
   }) {
     return GymSettings(
       gymName: gymName ?? this.gymName,
@@ -45,6 +49,7 @@ class GymSettings extends Equatable {
       commercialRegister: commercialRegister ?? this.commercialRegister,
       themeMode: themeMode ?? this.themeMode,
       logoPath: logoPath ?? this.logoPath,
+      defaultA4Printer: defaultA4Printer ?? this.defaultA4Printer,
     );
   }
 
@@ -56,5 +61,6 @@ class GymSettings extends Equatable {
         commercialRegister,
         themeMode,
         logoPath,
+        defaultA4Printer,
       ];
 }

@@ -20,6 +20,10 @@ class PaymentsPage extends StatefulWidget {
 class _PaymentsPageState extends State<PaymentsPage> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _searchQuery = '';
+  String _dateFilter =
+      'all'; // 'all', 'today', 'yesterday', 'dayBeforeYesterday', 'custom'
+  DateTime? _customStartDate;
+  DateTime? _customEndDate;
 
   @override
   void initState() {
@@ -44,12 +48,11 @@ class _PaymentsPageState extends State<PaymentsPage> {
   }
 
   void _showAddPaymentDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => const AddPaymentDialog(),
-    ).then((_) {
-      context.read<PaymentsCubit>().loadPaymentsAndStats();
-    });
+    showDialog(context: context, builder: (_) => const AddPaymentDialog()).then(
+      (_) {
+        context.read<PaymentsCubit>().loadPaymentsAndStats();
+      },
+    );
   }
 
   void _showReceiptDialog(Payment payment) {
@@ -75,129 +78,311 @@ class _PaymentsPageState extends State<PaymentsPage> {
         ),
       ],
       body: BlocConsumer<PaymentsCubit, PaymentsState>(
-          listener: (context, state) {
-            if (state is PaymentsActionSuccess) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')),
-                  backgroundColor: ColorPalette.successColor,
+        listener: (context, state) {
+          if (state is PaymentsActionSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  state.message,
+                  style: const TextStyle(fontFamily: 'Cairo'),
                 ),
-              );
-              // إظهار إيصال الدفع تلقائياً للمعاينة والطباعة عند تسجيل الدفع بنجاح
-              _showReceiptDialog(state.payment);
-            } else if (state is PaymentsError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(state.message, style: const TextStyle(fontFamily: 'Cairo')),
-                  backgroundColor: ColorPalette.errorColor,
-                ),
-              );
-            }
-          },
-          builder: (context, state) {
-            List<Payment> list = [];
-            Map<String, dynamic> stats = {
-              'todayRevenue': 0.0,
-              'monthRevenue': 0.0,
-              'totalRevenue': 0.0,
-              'totalDebts': 0.0,
-            };
-            bool isLoading = state is PaymentsLoading;
-
-            if (state is PaymentsLoaded) {
-              list = state.allPayments;
-              stats = state.stats;
-            }
-
-            // تطبيق فلتر البحث
-            final filteredList = list.where((p) {
-              final query = _searchQuery.toLowerCase();
-              final name = (p.memberName ?? '').toLowerCase();
-              final id = p.memberId.toLowerCase();
-              final receipt = p.receiptId.toLowerCase();
-              return name.contains(query) || id.contains(query) || receipt.contains(query);
-            }).toList();
-
-            return Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  // 1. شريط الإحصائيات المالية
-                  _buildStatsRow(theme, stats, isDark),
-                  const SizedBox(height: 24),
-
-                  // 2. شريط البحث وإجراء الإضافة
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Card(
-                          elevation: 1,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                            child: TextFormField(
-                              controller: _searchCtrl,
-                              onChanged: (v) {
-                                setState(() {
-                                  _searchQuery = v;
-                                });
-                              },
-                              decoration: InputDecoration(
-                                hintText: 'ابحث باسم المشترك، أو رقم العضوية، أو رقم الإيصال...',
-                                prefixIcon: const Icon(Icons.search),
-                                border: InputBorder.none,
-                                suffixIcon: _searchQuery.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear),
-                                        onPressed: () {
-                                          _searchCtrl.clear();
-                                          setState(() {
-                                            _searchQuery = '';
-                                          });
-                                        },
-                                      )
-                                    : null,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      SizedBox(
-                        height: 52,
-                        child: ElevatedButton.icon(
-                          onPressed: _showAddPaymentDialog,
-                          icon: const Icon(Icons.add_card, color: Colors.white),
-                          label: const Text('إضافة دفعة مالية'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ColorPalette.successColor,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // 3. جدول سجل المدفوعات
-                  Expanded(
-                    child: _buildPaymentsTable(theme, filteredList, isLoading, isDark),
-                  ),
-                ],
+                backgroundColor: ColorPalette.successColor,
               ),
             );
+            // إظهار إيصال الدفع تلقائياً للمعاينة والطباعة عند تسجيل الدفع بنجاح
+            _showReceiptDialog(state.payment);
+          } else if (state is PaymentsError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  state.message,
+                  style: const TextStyle(fontFamily: 'Cairo'),
+                ),
+                backgroundColor: ColorPalette.errorColor,
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          List<Payment> list = [];
+          Map<String, dynamic> stats = {
+            'todayRevenue': 0.0,
+            'monthRevenue': 0.0,
+            'totalRevenue': 0.0,
+            'totalDebts': 0.0,
+          };
+          bool isLoading = state is PaymentsLoading;
+
+          if (state is PaymentsLoaded) {
+            list = state.allPayments;
+            stats = state.stats;
+          }
+
+          // تطبيق فلتر البحث
+          final filteredList = list.where((p) {
+            final query = _searchQuery.toLowerCase();
+            final name = (p.memberName ?? '').toLowerCase();
+            final id = p.memberId.toLowerCase();
+            final receipt = p.receiptId.toLowerCase();
+            final matchesSearch =
+                name.contains(query) ||
+                id.contains(query) ||
+                receipt.contains(query);
+
+            bool matchesDate = true;
+            if (_dateFilter != 'all') {
+              final paymentDate = DateTime.tryParse(p.paymentDate);
+              if (paymentDate != null) {
+                final now = DateTime.now();
+                final today = DateTime(now.year, now.month, now.day);
+                final pDate = DateTime(
+                  paymentDate.year,
+                  paymentDate.month,
+                  paymentDate.day,
+                );
+
+                if (_dateFilter == 'today') {
+                  matchesDate = pDate.isAtSameMomentAs(today);
+                } else if (_dateFilter == 'yesterday') {
+                  matchesDate = pDate.isAtSameMomentAs(
+                    today.subtract(const Duration(days: 1)),
+                  );
+                } else if (_dateFilter == 'dayBeforeYesterday') {
+                  matchesDate = pDate.isAtSameMomentAs(
+                    today.subtract(const Duration(days: 2)),
+                  );
+                } else if (_dateFilter == 'custom') {
+                  if (_customStartDate != null && _customEndDate != null) {
+                    final start = DateTime(
+                      _customStartDate!.year,
+                      _customStartDate!.month,
+                      _customStartDate!.day,
+                    );
+                    final end = DateTime(
+                      _customEndDate!.year,
+                      _customEndDate!.month,
+                      _customEndDate!.day,
+                    );
+                    matchesDate =
+                        (pDate.isAtSameMomentAs(start) ||
+                            pDate.isAfter(start)) &&
+                        (pDate.isAtSameMomentAs(end) || pDate.isBefore(end));
+                  }
+                }
+              }
+            }
+
+            return matchesSearch && matchesDate;
+          }).toList();
+
+          return Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                // 1. شريط الإحصائيات المالية
+                _buildStatsRow(theme, stats, isDark),
+                const SizedBox(height: 24),
+
+                // 2. شريط البحث وإجراء الإضافة
+                Row(
+                  children: [
+                    Expanded(
+                      child: Card(
+                        elevation: 1,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: TextFormField(
+                            controller: _searchCtrl,
+                            onChanged: (v) {
+                              setState(() {
+                                _searchQuery = v;
+                              });
+                            },
+                            decoration: InputDecoration(
+                              hintText:
+                                  'ابحث باسم المشترك، أو رقم العضوية، أو رقم الإيصال...',
+                              prefixIcon: const Icon(Icons.search),
+                              border: InputBorder.none,
+                              suffixIcon: _searchQuery.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        _searchCtrl.clear();
+                                        setState(() {
+                                          _searchQuery = '';
+                                        });
+                                      },
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildDateFilterDropdown(),
+                    if (_dateFilter == 'custom') ...[
+                      const SizedBox(width: 8),
+                      _buildCustomDatePickers(),
+                    ],
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: _showAddPaymentDialog,
+                        icon: const Icon(Icons.add_card, color: Colors.white),
+                        label: const Text('إضافة دفعة مالية'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ColorPalette.successColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // 3. جدول سجل المدفوعات
+                Expanded(
+                  child: _buildPaymentsTable(
+                    theme,
+                    filteredList,
+                    isLoading,
+                    isDark,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDateFilterDropdown() {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: _dateFilter,
+            icon: const Padding(
+              padding: EdgeInsets.only(right: 8.0),
+              child: Icon(Icons.filter_alt_outlined, color: Colors.grey),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'all', child: Text('كل التواريخ')),
+              DropdownMenuItem(value: 'today', child: Text('اليوم')),
+              DropdownMenuItem(value: 'yesterday', child: Text('أمس')),
+              DropdownMenuItem(
+                value: 'dayBeforeYesterday',
+                child: Text('أول أمس'),
+              ),
+              DropdownMenuItem(value: 'custom', child: Text('مخصص')),
+            ],
+            onChanged: (val) {
+              if (val != null) {
+                setState(() {
+                  _dateFilter = val;
+                  if (val != 'custom') {
+                    _customStartDate = null;
+                    _customEndDate = null;
+                  } else {
+                    _customStartDate = DateTime.now();
+                    _customEndDate = DateTime.now();
+                  }
+                });
+              }
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomDatePickers() {
+    return Row(
+      children: [
+        _buildDatePickerBtn(
+          label: _customStartDate == null
+              ? 'من'
+              : DateFormat('yyyy/MM/dd').format(_customStartDate!),
+          onTap: () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate: _customStartDate ?? DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime.now().add(const Duration(days: 365)),
+            );
+            if (date != null) {
+              setState(() => _customStartDate = date);
+            }
           },
         ),
-      );
-    }
+        const SizedBox(width: 8),
+        _buildDatePickerBtn(
+          label: _customEndDate == null
+              ? 'إلى'
+              : DateFormat('yyyy/MM/dd').format(_customEndDate!),
+          onTap: () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate: _customEndDate ?? DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime.now().add(const Duration(days: 365)),
+            );
+            if (date != null) {
+              setState(() => _customEndDate = date);
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDatePickerBtn({
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          height: 52,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          alignment: Alignment.center,
+          child: Row(
+            children: [
+              const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+              const SizedBox(width: 8),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // شريط كروت الإحصائيات
   // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildStatsRow(ThemeData theme, Map<String, dynamic> stats, bool isDark) {
+  Widget _buildStatsRow(
+    ThemeData theme,
+    Map<String, dynamic> stats,
+    bool isDark,
+  ) {
     final today = stats['todayRevenue'] as double? ?? 0.0;
     final month = stats['monthRevenue'] as double? ?? 0.0;
     final total = stats['totalRevenue'] as double? ?? 0.0;
@@ -284,7 +469,9 @@ class _PaymentsPageState extends State<PaymentsPage> {
                   Text(
                     title,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: isDark ? ColorPalette.textSecondaryDark : ColorPalette.textSecondaryLight,
+                      color: isDark
+                          ? ColorPalette.textSecondaryDark
+                          : ColorPalette.textSecondaryLight,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -294,7 +481,9 @@ class _PaymentsPageState extends State<PaymentsPage> {
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       fontSize: 20,
-                      color: isDark ? ColorPalette.textPrimaryDark : ColorPalette.textPrimaryLight,
+                      color: isDark
+                          ? ColorPalette.textPrimaryDark
+                          : ColorPalette.textPrimaryLight,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -318,9 +507,7 @@ class _PaymentsPageState extends State<PaymentsPage> {
     bool isDark,
   ) {
     if (isLoading && list.isEmpty) {
-      return const Card(
-        child: Center(child: CircularProgressIndicator()),
-      );
+      return const Card(child: Center(child: CircularProgressIndicator()));
     }
 
     if (list.isEmpty) {
@@ -335,7 +522,11 @@ class _PaymentsPageState extends State<PaymentsPage> {
               const SizedBox(height: 16),
               Text(
                 'لا توجد عمليات دفع مسجلة بعد',
-                style: TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -353,7 +544,9 @@ class _PaymentsPageState extends State<PaymentsPage> {
             padding: const EdgeInsets.all(20.0),
             child: Text(
               'سجل المدفوعات والتحصيلات',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const Divider(height: 1),
@@ -368,39 +561,92 @@ class _PaymentsPageState extends State<PaymentsPage> {
                   ),
                   child: DataTable(
                     headingRowColor: WidgetStateProperty.all(
-                      isDark ? ColorPalette.tableHeaderDark : ColorPalette.tableHeaderLight.withOpacity(0.05),
+                      isDark
+                          ? ColorPalette.tableHeaderDark
+                          : ColorPalette.tableHeaderLight.withOpacity(0.05),
                     ),
                     columns: const [
-                      DataColumn(label: Text('رقم الإيصال', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('اسم العميل', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('المبلغ', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('طريقة الدفع', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('التاريخ والوقت', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('الموظف', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('الإجراءات', style: TextStyle(fontWeight: FontWeight.bold))),
+                      //     DataColumn(label: Text('رقم الإيصال', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(
+                        label: Text(
+                          'اسم العميل',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'المبلغ',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'طريقة الدفع',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'التاريخ والوقت',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'الموظف',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'الإجراءات',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     ],
                     rows: list.map((p) {
                       return DataRow(
                         cells: [
-                          DataCell(Text(p.receiptId, style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold))),
+                          // DataCell(Text(p.receiptId, style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold))),
                           DataCell(Text(p.memberName ?? 'عضو غير معروف')),
-                          DataCell(Text('${_formatCurrency(p.amount)} ج.م', style: const TextStyle(fontWeight: FontWeight.bold))),
-                          DataCell(Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: ColorPalette.primaryColor.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(6),
+                          DataCell(
+                            Text(
+                              '${_formatCurrency(p.amount)} ج.م',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                            child: Text(
-                              p.paymentMethod,
-                              style: const TextStyle(color: ColorPalette.primaryColor, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                          DataCell(
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: ColorPalette.primaryColor.withOpacity(
+                                  0.08,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                p.paymentMethod,
+                                style: const TextStyle(
+                                  color: ColorPalette.primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ),
-                          )),
+                          ),
                           DataCell(Text(_formatDate(p.paymentDate))),
                           DataCell(Text(p.employeeName)),
                           DataCell(
                             IconButton(
-                              icon: const Icon(Icons.print, color: ColorPalette.infoColor),
+                              icon: const Icon(
+                                Icons.print,
+                                color: ColorPalette.infoColor,
+                              ),
                               onPressed: () => _showReceiptDialog(p),
                               tooltip: 'عرض وطباعة الإيصال',
                             ),

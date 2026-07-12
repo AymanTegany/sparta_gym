@@ -7,7 +7,7 @@ import 'package:crypto/crypto.dart';
 /// تقوم بتوليد والتحقق من كروت الترخيص (License Keys) دون الحاجة للاتصال بالإنترنت.
 /// تعتمد على ربط الترخيص بـ deviceId الخاص بالجهاز وتحديد فترة صلاحية بالأيام.
 class LicenseService {
-  static const String _kSecretSalt = 'sparta_gym_secret_salt_2026';
+  static const String _kSecretSalt = 'sparta_gym_secret_salt_2020';
 
   /// توليد كارت ترخيص جديد لجهاز معين وعدد أيام محدد
   static String generateLicense(String deviceId, int days) {

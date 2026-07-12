@@ -3,7 +3,7 @@
 ; Non-commercial use only
 
 #define MyAppName "Gym_System"
-#define MyAppVersion "1.4"
+#define MyAppVersion "1.6"
 #define MyAppPublisher "My Company, Inc."
 #define MyAppURL "https://www.ayman.com/"
 #define MyAppExeName "sparta_gym.exe"

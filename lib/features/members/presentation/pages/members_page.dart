@@ -23,6 +23,9 @@ import '../widgets/print_member_invoice.dart';
 import '../../../payments/presentation/widgets/add_payment_dialog.dart';
 import '../widgets/member_card_print.dart';
 import '../../../diets/presentation/cubit/diet_plans_cubit.dart';
+import '../../../expenses/presentation/cubit/expenses_cubit.dart';
+import '../../../expenses/domain/entities/expense_entity.dart';
+import '../../../shifts/presentation/cubit/shifts_cubit.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// شاشة إدارة العملاء (Members Management Page)
@@ -207,6 +210,57 @@ class _MembersPageState extends State<MembersPage> {
                 foregroundColor: Colors.white,
               ),
               child: const Text('حذف نهائي'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// فتح ديالوج ارجاع مبلغ الاشتراك وحذف العميل
+  void _showRefundAndDeleteDialog(BuildContext context, Member member) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.money_off_rounded, color: Colors.orange, size: 28),
+              SizedBox(width: 10),
+              Text(
+                'ارجاع اشتراك وحذف العميل',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Text(
+            'هل أنت متأكد من رغبتك في الغاء اشتراك العميل "${member.fullName}" وحذفه؟\nسيتم حذف العميل وكل مدفوعاته نهائياً، وكأنها لم تسجل.',
+            style: const TextStyle(height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                
+                // Delete member (and cascade delete payments)
+                context.read<MembersCubit>().deleteMember(member.id!);
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('تم الغاء الاشتراك وحذف العميل بنجاح'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('الغاء الاشتراك وحذف'),
             ),
           ],
         );
@@ -723,6 +777,7 @@ class _MembersPageState extends State<MembersPage> {
                         onPrintCard: (m) => _showPrintCardDialog(context, m),
                         onWhatsAppAlert: (m) => _sendWhatsAppAlert(m),
                         onWelcomeMessage: (m) => _sendWelcomeMessage(m),
+                        onRefundAndDelete: (m) => _showRefundAndDeleteDialog(context, m),
                       ),
                     ),
                   ),

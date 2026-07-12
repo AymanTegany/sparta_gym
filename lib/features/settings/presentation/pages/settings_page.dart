@@ -5,13 +5,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:file_picker/file_picker.dart';
+import 'package:printing/printing.dart';
 
 import '../../../../core/theme/color_palette.dart';
 import '../../../../core/common/widgets/sidebar_layout.dart';
 import '../cubit/settings_cubit.dart';
 import '../cubit/settings_state.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
-import '../../../shifts/presentation/pages/manage_employees_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -28,6 +28,9 @@ class _SettingsPageState extends State<SettingsPage> {
   late final TextEditingController _registerCtrl;
   String _dbPath = 'جاري التحميل...';
   String? _selectedLogoPath;
+  List<Printer> _availablePrinters = [];
+  bool _isLoadingPrinters = false;
+  String? _selectedPrinter;
 
   @override
   void initState() {
@@ -40,6 +43,25 @@ class _SettingsPageState extends State<SettingsPage> {
     // تحميل الإعدادات ومسار قاعدة البيانات
     context.read<SettingsCubit>().loadSettings();
     _getDatabasePath();
+    _loadAvailablePrinters();
+  }
+
+  Future<void> _loadAvailablePrinters() async {
+    setState(() {
+      _isLoadingPrinters = true;
+    });
+    try {
+      final printers = await Printing.listPrinters();
+      setState(() {
+        _availablePrinters = printers;
+        _isLoadingPrinters = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingPrinters = false;
+      });
+      debugPrint('Error listing printers: $e');
+    }
   }
 
   Future<void> _getDatabasePath() async {
@@ -73,6 +95,7 @@ class _SettingsPageState extends State<SettingsPage> {
           address: _addressCtrl.text.trim(),
           register: _registerCtrl.text.trim(),
           logoPath: _selectedLogoPath,
+          defaultA4Printer: _selectedPrinter,
         );
   }
 
@@ -116,6 +139,7 @@ class _SettingsPageState extends State<SettingsPage> {
               if (_selectedLogoPath == null && state.settings.logoPath.isNotEmpty) {
                 _selectedLogoPath = state.settings.logoPath;
               }
+              _selectedPrinter = state.settings.defaultA4Printer.isEmpty ? null : state.settings.defaultA4Printer;
             } else if (state is SettingsError) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -254,6 +278,129 @@ class _SettingsPageState extends State<SettingsPage> {
                                       ),
                                     ),
                                   ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+
+                          // 2. كارت إعدادات الطباعة
+                          _buildSectionHeader('إعدادات الطباعة (Printer Settings)', Icons.print),
+                          const SizedBox(height: 16),
+                          Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'الطابعة الافتراضية للفواتير (A4)',
+                                              style: theme.textTheme.titleMedium?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'حدد الطابعة التي سيتم إرسال الفواتير إليها مباشرة دون الحاجة لاختيارها في كل مرة.',
+                                              style: theme.textTheme.bodySmall,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      IconButton.filledTonal(
+                                        onPressed: _loadAvailablePrinters,
+                                        icon: _isLoadingPrinters
+                                            ? const SizedBox(
+                                                width: 18,
+                                                height: 18,
+                                                child: CircularProgressIndicator(strokeWidth: 2),
+                                              )
+                                            : const Icon(Icons.refresh),
+                                        tooltip: 'تحديث قائمة الطابعات',
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 20),
+                                  if (_isLoadingPrinters)
+                                    const LinearProgressIndicator()
+                                  else if (_availablePrinters.isEmpty && (_selectedPrinter == null || _selectedPrinter!.isEmpty))
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.warning_amber_rounded, color: ColorPalette.warningColor),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'لم يتم العثور على طابعات متصلة بالنظام. يرجى التحقق من التوصيل وإعادة المحاولة.',
+                                            style: TextStyle(color: theme.colorScheme.error, fontFamily: 'Cairo'),
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  else
+                                    DropdownButtonFormField<String>(
+                                      value: (_selectedPrinter == null || _selectedPrinter!.isEmpty) ? '' : _selectedPrinter,
+                                      hint: const Text('اختر الطابعة الافتراضية من القائمة', style: TextStyle(fontFamily: 'Cairo')),
+                                      isExpanded: true,
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        prefixIcon: const Icon(Icons.print_outlined),
+                                      ),
+                                      items: [
+                                        const DropdownMenuItem<String>(
+                                          value: '',
+                                          child: Text('لا توجد طابعة افتراضية (عرض معاينة الفاتورة قبل الطباعة)', style: TextStyle(fontFamily: 'Cairo')),
+                                        ),
+                                        if (_selectedPrinter != null &&
+                                            _selectedPrinter!.isNotEmpty &&
+                                            !_availablePrinters.any((p) => p.name == _selectedPrinter))
+                                          DropdownMenuItem<String>(
+                                            value: _selectedPrinter,
+                                            child: Text('$_selectedPrinter (غير متصلة حالياً)', style: const TextStyle(fontFamily: 'Cairo')),
+                                          ),
+                                        ..._availablePrinters.map((printer) {
+                                          return DropdownMenuItem<String>(
+                                            value: printer.name,
+                                            child: Text(printer.name, style: const TextStyle(fontFamily: 'Cairo')),
+                                          );
+                                        }),
+                                      ],
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _selectedPrinter = value;
+                                        });
+                                        context.read<SettingsCubit>().saveGymInfo(
+                                              name: _nameCtrl.text.trim(),
+                                              phone: _phoneCtrl.text.trim(),
+                                              address: _addressCtrl.text.trim(),
+                                              register: _registerCtrl.text.trim(),
+                                              logoPath: _selectedLogoPath,
+                                              defaultA4Printer: value,
+                                            );
+                                      },
+                                    ),
+                                  if (_selectedPrinter != null && _selectedPrinter!.isNotEmpty) ...[
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.check_circle_outline, color: ColorPalette.successColor, size: 18),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'سيتم إرسال الفاتورة تلقائياً إلى: $_selectedPrinter',
+                                          style: const TextStyle(color: ColorPalette.successColor, fontSize: 13, fontFamily: 'Cairo'),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),

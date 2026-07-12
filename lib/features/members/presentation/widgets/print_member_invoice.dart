@@ -304,7 +304,47 @@ Future<void> printMemberA4Invoice(BuildContext context, Member member) async {
       ),
     );
 
-    if (context.mounted) {
+    bool directPrinted = false;
+    if (settings.defaultA4Printer.isNotEmpty) {
+      try {
+        final printers = await Printing.listPrinters();
+        final targetPrinter = printers.firstWhere(
+          (p) => p.name.trim().toLowerCase() == settings.defaultA4Printer.trim().toLowerCase() ||
+                 p.url.trim().toLowerCase() == settings.defaultA4Printer.trim().toLowerCase(),
+        );
+        await Printing.directPrintPdf(
+          printer: targetPrinter,
+          onLayout: (format) async => doc.save(),
+          format: PdfPageFormat.a4,
+        );
+        directPrinted = true;
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم إرسال الفاتورة للطابعة "${settings.defaultA4Printer}" بنجاح', style: const TextStyle(fontFamily: 'Cairo')),
+              backgroundColor: ColorPalette.successColor,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Direct printing failed: $e');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'فشل الطباعة المباشرة: $e\nتم فتح المعاينة للطابعة الافتراضية: "${settings.defaultA4Printer}"',
+                style: const TextStyle(fontFamily: 'Cairo'),
+              ),
+              backgroundColor: ColorPalette.warningColor,
+              duration: const Duration(seconds: 6),
+            ),
+          );
+        }
+      }
+    }
+
+    if (!directPrinted && context.mounted) {
       showDialog(
         context: context,
         builder: (context) => Dialog(

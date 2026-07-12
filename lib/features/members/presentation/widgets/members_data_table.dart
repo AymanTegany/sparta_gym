@@ -16,6 +16,7 @@ class MembersDataTable extends StatefulWidget {
   final Function(Member) onPrintCard;
   final Function(Member) onWhatsAppAlert;
   final Function(Member) onWelcomeMessage;
+  final Function(Member) onRefundAndDelete;
 
   const MembersDataTable({
     super.key,
@@ -28,6 +29,7 @@ class MembersDataTable extends StatefulWidget {
     required this.onPrintCard,
     required this.onWhatsAppAlert,
     required this.onWelcomeMessage,
+    required this.onRefundAndDelete,
   });
 
   @override
@@ -35,8 +37,6 @@ class MembersDataTable extends StatefulWidget {
 }
 
 class _MembersDataTableState extends State<MembersDataTable> {
-  int _currentPage = 0;
-  static const int _rowsPerPage = 15;
   int _sortColumnIndex = 0;
   bool _sortAscending = true;
   late List<Member> _sortedMembers;
@@ -61,11 +61,6 @@ class _MembersDataTableState extends State<MembersDataTable> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.members != widget.members) {
       _sortedMembers = List.from(widget.members);
-      // Reset page if current page is out of bounds
-      final maxPage = (_sortedMembers.length / _rowsPerPage).ceil() - 1;
-      if (_currentPage > maxPage) {
-        _currentPage = maxPage < 0 ? 0 : maxPage;
-      }
     }
   }
 
@@ -95,14 +90,6 @@ class _MembersDataTableState extends State<MembersDataTable> {
     if (_sortedMembers.isEmpty) {
       return _buildEmptyState(context, isDark);
     }
-
-    final totalPages = (_sortedMembers.length / _rowsPerPage).ceil();
-    final startIndex = _currentPage * _rowsPerPage;
-    final endIndex = (startIndex + _rowsPerPage).clamp(
-      0,
-      _sortedMembers.length,
-    );
-    final pageMembers = _sortedMembers.sublist(startIndex, endIndex);
 
     return Column(
       children: [
@@ -187,8 +174,8 @@ class _MembersDataTableState extends State<MembersDataTable> {
                   ),
                   const DataColumn(label: Text('الإجراءات')),
                 ],
-                rows: List.generate(pageMembers.length, (index) {
-                  final member = pageMembers[index];
+                rows: List.generate(_sortedMembers.length, (index) {
+                  final member = _sortedMembers[index];
                   final isEvenRow = index.isEven;
 
                   return DataRow(
@@ -328,9 +315,6 @@ class _MembersDataTableState extends State<MembersDataTable> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        // Pagination
-        if (totalPages > 1) _buildPagination(context, totalPages, isDark),
       ],
     );
   }
@@ -418,6 +402,9 @@ class _MembersDataTableState extends State<MembersDataTable> {
           case 'welcome_msg':
             widget.onWelcomeMessage(member);
             break;
+          case 'refund_delete':
+            widget.onRefundAndDelete(member);
+            break;
           case 'delete':
             widget.onDelete(member);
             break;
@@ -442,6 +429,13 @@ class _MembersDataTableState extends State<MembersDataTable> {
         _buildPopupItem('whatsapp', Icons.chat_rounded, 'تنبيه واتساب', isDark),
         _buildPopupItem('welcome_msg', Icons.waving_hand_rounded, 'رسالة ترحيب', isDark),
         const PopupMenuDivider(),
+        _buildPopupItem(
+          'refund_delete',
+          Icons.money_off_rounded,
+          'ارجاع مبلغ الاشتراك وحذف العميل',
+          isDark,
+          isDestructive: true,
+        ),
         _buildPopupItem(
           'delete',
           Icons.delete_rounded,
@@ -490,114 +484,7 @@ class _MembersDataTableState extends State<MembersDataTable> {
     );
   }
 
-  /// بناء شريط الصفحات
-  Widget _buildPagination(BuildContext context, int totalPages, bool isDark) {
-    final theme = Theme.of(context);
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // عدد العناصر
-        Text(
-          'عرض ${_currentPage * _rowsPerPage + 1} - ${((_currentPage + 1) * _rowsPerPage).clamp(0, _sortedMembers.length)} من ${_sortedMembers.length}',
-          style: theme.textTheme.bodySmall,
-        ),
-        const SizedBox(width: 24),
-        // أزرار التنقل
-        IconButton(
-          icon: const Icon(Icons.chevron_right_rounded),
-          onPressed: _currentPage > 0
-              ? () => setState(() => _currentPage--)
-              : null,
-          iconSize: 22,
-          style: IconButton.styleFrom(
-            backgroundColor: isDark ? ColorPalette.cardDark : Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-              side: BorderSide(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.grey.shade300,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        // أرقام الصفحات
-        ...List.generate(totalPages > 5 ? 5 : totalPages, (index) {
-          int pageNumber;
-          if (totalPages <= 5) {
-            pageNumber = index;
-          } else if (_currentPage < 3) {
-            pageNumber = index;
-          } else if (_currentPage > totalPages - 4) {
-            pageNumber = totalPages - 5 + index;
-          } else {
-            pageNumber = _currentPage - 2 + index;
-          }
-
-          final isActive = pageNumber == _currentPage;
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3),
-            child: InkWell(
-              onTap: () => setState(() => _currentPage = pageNumber),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: 36,
-                height: 36,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? theme.colorScheme.primary
-                      : (isDark ? ColorPalette.cardDark : Colors.white),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isActive
-                        ? theme.colorScheme.primary
-                        : (isDark
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : Colors.grey.shade300),
-                  ),
-                ),
-                child: Text(
-                  '${pageNumber + 1}',
-                  style: TextStyle(
-                    color: isActive
-                        ? Colors.white
-                        : (isDark
-                              ? ColorPalette.textPrimaryDark
-                              : ColorPalette.textPrimaryLight),
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: const Icon(Icons.chevron_left_rounded),
-          onPressed: _currentPage < totalPages - 1
-              ? () => setState(() => _currentPage++)
-              : null,
-          iconSize: 22,
-          style: IconButton.styleFrom(
-            backgroundColor: isDark ? ColorPalette.cardDark : Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-              side: BorderSide(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.grey.shade300,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   /// بناء حالة عدم وجود بيانات
   Widget _buildEmptyState(BuildContext context, bool isDark) {

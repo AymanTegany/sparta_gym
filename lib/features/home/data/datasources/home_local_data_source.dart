@@ -35,8 +35,8 @@ class HomeLocalDataSourceImpl implements HomeLocalDataSource {
 
       // 3. الاشتراكات المنتهية
       final expiredMembersResult = await db.rawQuery(
-        'SELECT COUNT(*) as count FROM members WHERE endDate < ?',
-        [nowStr],
+        'SELECT COUNT(*) as count FROM members WHERE endDate < ? AND membershipType != ?',
+        [nowStr, 'تمرينة واحدة'],
       );
       final expiredMembers = expiredMembersResult.first['count'] as int? ?? 0;
 

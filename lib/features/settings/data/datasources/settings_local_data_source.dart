@@ -17,6 +17,7 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
   static const _kGymRegister = 'gym_register';
   static const _kThemeMode = 'theme_mode';
   static const _kLogoPath = 'logo_path';
+  static const _kDefaultA4Printer = 'default_a4_printer';
 
   @override
   Future<GymSettings> getSettings() async {
@@ -26,6 +27,7 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
     final register = sharedPreferences.getString(_kGymRegister) ?? '';
     final theme = sharedPreferences.getString(_kThemeMode) ?? 'light';
     final logoPath = sharedPreferences.getString(_kLogoPath) ?? '';
+    final defaultA4Printer = sharedPreferences.getString(_kDefaultA4Printer) ?? '';
 
     return GymSettings(
       gymName: name,
@@ -34,6 +36,7 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
       commercialRegister: register,
       themeMode: theme,
       logoPath: logoPath,
+      defaultA4Printer: defaultA4Printer,
     );
   }
 
@@ -45,5 +48,6 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
     await sharedPreferences.setString(_kGymRegister, settings.commercialRegister);
     await sharedPreferences.setString(_kThemeMode, settings.themeMode);
     await sharedPreferences.setString(_kLogoPath, settings.logoPath);
+    await sharedPreferences.setString(_kDefaultA4Printer, settings.defaultA4Printer);
   }
 }

@@ -191,7 +191,7 @@ class _DeveloperPageState extends State<DeveloperPage> {
   }
 
   void _checkPass() {
-    if (_passCtrl.text == '20262026') {
+    if (_passCtrl.text == '2020') {
       setState(() => _isUnlocked = true);
     } else {
       ScaffoldMessenger.of(
