@@ -18,7 +18,7 @@ class DatabaseHelper {
   // ==========================================
   // 2. إعدادات قاعدة البيانات
   // ==========================================
-  static const int _databaseVersion = 4;
+  static const int _databaseVersion = 5;
   static const String _databaseName = 'sparta_gym_v1.db';
 
   // ==========================================
@@ -43,6 +43,11 @@ class DatabaseHelper {
         version: _databaseVersion,
         onConfigure: (db) async {
           await db.execute('PRAGMA foreign_keys = ON');
+          // تحسينات أداء SQLite (لا تغير أي لوجيك)
+          await db.execute('PRAGMA journal_mode = WAL');        // القراءة والكتابة في نفس الوقت بدون تعارض
+          await db.execute('PRAGMA synchronous = NORMAL');      // أسرع مع الحفاظ على أمان البيانات في وضع WAL
+          await db.execute('PRAGMA cache_size = -10000');       // 10MB ذاكرة مؤقتة (بدلاً من 2MB الافتراضية)
+          await db.execute('PRAGMA temp_store = MEMORY');       // الجداول المؤقتة في الذاكرة بدلاً من القرص
         },
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
@@ -139,6 +144,12 @@ class DatabaseHelper {
       try {
         await db.execute('ALTER TABLE members ADD COLUMN additionalServicesIds TEXT');
       } catch (_) {}
+    }
+
+    if (oldVersion < 5) {
+      // ── الترقية إلى v5: فهارس إضافية لتسريع الحضور والانصراف ──
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_checkOutTime ON attendance(checkOutTime)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_member_checkout ON attendance(memberId, checkOutTime)');
     }
   }
 
@@ -391,6 +402,9 @@ class DatabaseHelper {
     // فهارس الحضور
     await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_memberId ON attendance(memberId)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_checkInTime ON attendance(checkInTime)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_checkOutTime ON attendance(checkOutTime)');
+    // فهرس مركب لتسريع البحث عن الجلسات النشطة (الاستعلام الأكثر استخداماً)
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_member_checkout ON attendance(memberId, checkOutTime)');
 
     // فهارس المدفوعات
     await db.execute('CREATE INDEX IF NOT EXISTS idx_payments_memberId ON payments(memberId)');

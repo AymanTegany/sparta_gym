@@ -96,6 +96,29 @@ class _GlobalScannerListenerState extends State<GlobalScannerListener> {
     context.read<AttendanceCubit>().processScan(scannedValue, 'تلقائي');
   }
 
+  /// تحديد نوع الخطأ وعنوانه المناسب
+  static ({String title, DialogType dialogType}) _classifyError(String message) {
+    if (message.contains('منتهي') || message.contains('منتهية') || message.contains('الصلاحية')) {
+      return (title: '⛔ اشتراك منتهي', dialogType: DialogType.warning);
+    }
+    if (message.contains('غير مسجل') || message.contains('غير موجود')) {
+      return (title: '❓ عضو غير مسجل', dialogType: DialogType.info);
+    }
+    if (message.contains('مسجل حضور بالفعل')) {
+      return (title: '🔄 تسجيل دخول مكرر', dialogType: DialogType.info);
+    }
+    if (message.contains('لا يوجد تسجيل دخول')) {
+      return (title: '⚠️ لم يسجل دخول', dialogType: DialogType.info);
+    }
+    if (message.contains('الزيارات المسموح')) {
+      return (title: '🚫 انتهت الزيارات', dialogType: DialogType.warning);
+    }
+    if (message.contains('تاريخ انتهاء')) {
+      return (title: '📅 خطأ في البيانات', dialogType: DialogType.error);
+    }
+    return (title: '❌ خطأ', dialogType: DialogType.error);
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<AttendanceCubit, AttendanceState>(
@@ -105,27 +128,30 @@ class _GlobalScannerListenerState extends State<GlobalScannerListener> {
             context: context,
             dialogType: DialogType.success,
             animType: AnimType.scale,
-            title: state.type == 'حضور' ? 'تم تسجيل الدخول' : 'تم تسجيل الخروج',
+            title: state.type == 'حضور' ? 'تم تسجيل الدخول ✅' : 'تم تسجيل الخروج ✅',
             desc: state.message,
             descTextStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
             titleTextStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
             autoHide: const Duration(seconds: 3),
           ).show();
         } else if (state is AttendanceError) {
-          if (state.message.contains('منتهي') || state.message.contains('منتهية')) {
+          if (state.message.contains('منتهي') || state.message.contains('منتهية') || state.message.contains('الزيارات')) {
             AudioService.playAlertSound();
           }
+          final errorInfo = _classifyError(state.message);
           AwesomeDialog(
             context: context,
-            dialogType: DialogType.error,
+            dialogType: errorInfo.dialogType,
             animType: AnimType.scale,
-            title: 'تنبيه',
+            title: errorInfo.title,
             desc: state.message,
-            descTextStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: Colors.red),
-            titleTextStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
+            descTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'Cairo', color: Colors.red),
+            titleTextStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
             btnOkOnPress: () {},
             btnOkColor: Colors.red,
             btnOkText: 'حسناً',
+            autoHide: const Duration(seconds: 10),
+            dismissOnTouchOutside: true,
           ).show();
         }
       },

@@ -110,7 +110,7 @@ void main() async {
 
 class SpartaGymApp extends StatelessWidget {
   final String currentVersion;
-  
+
   const SpartaGymApp({super.key, required this.currentVersion});
 
   @override
@@ -127,8 +127,8 @@ class SpartaGymApp extends StatelessWidget {
         return MaterialApp(
           builder: (context, child) {
             final updateService = GithubUpdateService(
-              owner: 'AymanTegany', 
-              repo: 'sparta-gym-releases'
+              owner: 'AymanTegany',
+              repo: 'sparta_gym',
             );
             return UpdatWindowManager(
               appName: 'Sparta Gym',
@@ -148,10 +148,7 @@ class SpartaGymApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          supportedLocales: const [
-            Locale('ar'),
-            Locale('en'),
-          ],
+          supportedLocales: const [Locale('ar'), Locale('en')],
           locale: const Locale('ar'),
           scrollBehavior: const MaterialScrollBehavior().copyWith(
             dragDevices: {

@@ -4,7 +4,6 @@ import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../../../core/theme/color_palette.dart';
 import '../../../../core/common/widgets/sidebar_layout.dart';
-import '../../../../core/services/audio_service.dart';
 import '../../domain/entities/attendance_entity.dart';
 import '../cubit/attendance_cubit.dart';
 import '../cubit/attendance_state.dart';
@@ -107,8 +106,15 @@ class _AttendancePageState extends State<AttendancePage> {
             if (state is AttendanceActionSuccess || state is AttendanceError) {
               // Dialogs and sounds are now handled globally by GlobalScannerListener.
               // Here we just make sure to return focus to the text field if the user is on this page.
+              // مسح حقل الإدخال لمنع إعادة إرسال نفس الباركود من حقل النص
+              _scanCtrl.clear();
               _scanFocusNode.requestFocus();
             }
+          },
+          // نبني واجهة المستخدم فقط عند وصول بيانات فعلية (AttendanceLoaded)
+          // ونتجاهل الحالات المؤقتة (Loading, Error, ActionSuccess) لمنع اختفاء الجدول
+          buildWhen: (previous, current) {
+            return current is AttendanceLoaded || current is AttendanceLoading;
           },
           builder: (context, state) {
             List<Attendance> dailyAttendance = [];
@@ -124,11 +130,6 @@ class _AttendancePageState extends State<AttendancePage> {
               dailyAttendance = state.dailyAttendance;
               stats = state.stats;
               searchResults = state.searchResults;
-            } else if (state is AttendanceActionSuccess) {
-              // للحفاظ على البيانات المعروضة أثناء إظهار الرسالة
-              // في حال كانت الحالة action نجلب البيانات السابقة
-              // لكن بما أن الـ cubit يقوم تلقائياً بطلب تحديث البيانات بعد النجاح،
-              // فستتحول الحالة سريعاً إلى Loaded.
             }
 
             return Padding(

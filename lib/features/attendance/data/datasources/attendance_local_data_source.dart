@@ -72,8 +72,8 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
           if (visitsLimit != null) {
             final attendanceCountResult = await txn.rawQuery('''
               SELECT COUNT(*) as count FROM attendance 
-              WHERE memberId = ? AND date(checkInTime) >= date(?)
-            ''', [memberId, startDateStr]);
+              WHERE memberId = ? AND checkInTime >= ?
+            ''', [memberId, '${startDateStr}T00:00:00']);
             
             final int attendanceCount = attendanceCountResult.first['count'] as int? ?? 0;
             if (attendanceCount >= visitsLimit) {
@@ -196,13 +196,18 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
   Future<List<AttendanceModel>> getDailyAttendance(String dateStr) async {
     try {
       final db = await databaseHelper.database;
+      // استخدام نطاق زمني بدلاً من date() لتسريع الاستعلام مع الفهارس
+      final dayStart = '${dateStr}T00:00:00';
+      final nextDay = DateTime.parse(dateStr).add(const Duration(days: 1));
+      final dayEnd = '${nextDay.toIso8601String().substring(0, 10)}T00:00:00';
+
       final results = await db.rawQuery('''
         SELECT a.*, m.fullName, m.phoneNumber 
         FROM attendance a
         LEFT JOIN members m ON a.memberId = m.memberId
-        WHERE date(a.checkInTime) = date(?)
+        WHERE a.checkInTime >= ? AND a.checkInTime < ?
         ORDER BY COALESCE(a.checkOutTime, a.checkInTime) DESC
-      ''', [dateStr]);
+      ''', [dayStart, dayEnd]);
 
       return results.map((map) => AttendanceModel.fromMap(map)).toList();
     } catch (e) {
@@ -214,22 +219,27 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
   Future<Map<String, dynamic>> getAttendanceStats() async {
     try {
       final db = await databaseHelper.database;
-      final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+      final now = DateTime.now();
+      final todayStart = '${now.toIso8601String().substring(0, 10)}T00:00:00';
+      final tomorrowStart = '${now.add(const Duration(days: 1)).toIso8601String().substring(0, 10)}T00:00:00';
+      // أول يوم في الشهر الحالي
+      final monthStart = '${now.toIso8601String().substring(0, 7)}-01T00:00:00';
 
-      // 1. عدد حضور اليوم
+      // 1. عدد حضور اليوم (باستخدام نطاق زمني بدلاً من date())
       final todayCountResult = await db.rawQuery('''
-        SELECT COUNT(*) as count FROM attendance WHERE date(checkInTime) = date(?)
-      ''', [todayStr]);
+        SELECT COUNT(*) as count FROM attendance 
+        WHERE checkInTime >= ? AND checkInTime < ?
+      ''', [todayStart, tomorrowStart]);
       final todayCount = todayCountResult.first['count'] as int? ?? 0;
 
       // 2. متوسط الحضور اليومي للشهر الحالي
       final avgResult = await db.rawQuery('''
         SELECT 
           COUNT(*) as total_attendance, 
-          COUNT(DISTINCT date(checkInTime)) as total_days 
+          COUNT(DISTINCT substr(checkInTime, 1, 10)) as total_days 
         FROM attendance
-        WHERE date(checkInTime) >= date('now', 'start of month')
-      ''');
+        WHERE checkInTime >= ?
+      ''', [monthStart]);
       final totalAttendance = avgResult.first['total_attendance'] as int? ?? 0;
       final totalDays = avgResult.first['total_days'] as int? ?? 0;
       final avgDaily = totalDays > 0 ? (totalAttendance / totalDays) : 0.0;
@@ -239,11 +249,11 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
         SELECT m.fullName, m.phoneNumber, COUNT(a.id) as attendanceCount
         FROM attendance a
         JOIN members m ON a.memberId = m.memberId
-        WHERE date(a.checkInTime) >= date('now', 'start of month')
+        WHERE a.checkInTime >= ?
         GROUP BY a.memberId
         ORDER BY attendanceCount DESC
         LIMIT 5
-      ''');
+      ''', [monthStart]);
 
       final topMembers = topResult.map((row) => {
         'fullName': row['fullName'] as String,
@@ -266,35 +276,21 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
     try {
       final db = await databaseHelper.database;
       final now = DateTime.now();
+      // حساب الحد الأقصى للوقت (الآن - maxHours ساعة)
+      final cutoffTime = now.subtract(Duration(hours: maxHours));
 
-      final activeCheckIns = await db.query(
-        'attendance',
-        where: 'checkOutTime IS NULL',
-      );
-
-      for (var record in activeCheckIns) {
-        final checkInTimeStr = record['checkInTime'] as String;
-        final checkInTime = DateTime.tryParse(checkInTimeStr);
-        
-        if (checkInTime != null && now.difference(checkInTime).inHours >= maxHours) {
-          final recordId = record['id'] as int;
-          // Set checkout time to check-in time + 60 minutes
-          final checkOutTime = checkInTime.add(const Duration(minutes: 60));
-          const duration = 60; 
-
-          await db.update(
-            'attendance',
-            {
-              'checkOutTime': checkOutTime.toIso8601String(),
-              'durationMinutes': duration,
-            },
-            where: 'id = ?',
-            whereArgs: [recordId],
-          );
-        }
-      }
+      // تحديث جميع السجلات المعلقة القديمة دفعة واحدة بدلاً من التكرار
+      // وقت الخروج = وقت الدخول + 60 دقيقة، المدة = 60 دقيقة
+      await db.rawUpdate('''
+        UPDATE attendance 
+        SET checkOutTime = datetime(checkInTime, '+60 minutes'),
+            durationMinutes = 60
+        WHERE checkOutTime IS NULL 
+          AND checkInTime < ?
+      ''', [cutoffTime.toIso8601String()]);
     } catch (e) {
-      throw DatabaseException('فشل في إنهاء الجلسات المعلقة: $e');
+      // نتجاهل الخطأ بدلاً من رميه لأن هذه عملية تنظيف غير حرجة
+      // ولا يجب أن تمنع تسجيل الحضور
     }
   }
 
@@ -302,24 +298,16 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
   Future<bool> isMemberCheckedIn(String barcodeOrPhone) async {
     try {
       final db = await databaseHelper.database;
-      final memberResults = await db.query(
-        'members',
-        where: 'memberId = ? OR phoneNumber = ?',
-        whereArgs: [barcodeOrPhone, barcodeOrPhone],
-        limit: 1,
-      );
+      // استعلام واحد بدلاً من اثنين: البحث عن العضو + التحقق من الحضور النشط
+      final results = await db.rawQuery('''
+        SELECT 1 FROM attendance a
+        JOIN members m ON a.memberId = m.memberId
+        WHERE (m.memberId = ? OR m.phoneNumber = ?) 
+          AND a.checkOutTime IS NULL
+        LIMIT 1
+      ''', [barcodeOrPhone, barcodeOrPhone]);
 
-      if (memberResults.isEmpty) return false;
-
-      final memberId = memberResults.first['memberId'] as String;
-      final activeCheckIn = await db.query(
-        'attendance',
-        where: 'memberId = ? AND checkOutTime IS NULL',
-        whereArgs: [memberId],
-        limit: 1,
-      );
-
-      return activeCheckIn.isNotEmpty;
+      return results.isNotEmpty;
     } catch (e) {
       return false;
     }

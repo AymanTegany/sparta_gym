@@ -59,14 +59,19 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
-      
-      final updateService = GithubUpdateService(owner: 'AymanTegany', repo: 'sparta-gym-releases');
+
+      final updateService = GithubUpdateService(
+        owner: 'AymanTegany',
+        repo: 'sparta_gym',
+      );
       final latestVersion = await updateService.getLatestVersion();
-      
+
       if (mounted) {
         setState(() {
           _currentAppVersion = currentVersion;
-          _latestAppVersion = latestVersion.isEmpty ? 'غير متوفر' : latestVersion;
+          _latestAppVersion = latestVersion.isEmpty
+              ? 'غير متوفر'
+              : latestVersion;
           _isCheckingUpdate = false;
         });
       }
@@ -125,19 +130,17 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!_formKey.currentState!.validate()) return;
 
     context.read<SettingsCubit>().saveGymInfo(
-          name: _nameCtrl.text.trim(),
-          phone: _phoneCtrl.text.trim(),
-          address: _addressCtrl.text.trim(),
-          register: _registerCtrl.text.trim(),
-          logoPath: _selectedLogoPath,
-          defaultA4Printer: _selectedPrinter,
-        );
+      name: _nameCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim(),
+      address: _addressCtrl.text.trim(),
+      register: _registerCtrl.text.trim(),
+      logoPath: _selectedLogoPath,
+      defaultA4Printer: _selectedPrinter,
+    );
   }
 
   Future<void> _pickLogo() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.image,
-    );
+    final result = await FilePicker.pickFiles(type: FileType.image);
     if (result != null && result.files.single.path != null) {
       setState(() {
         _selectedLogoPath = result.files.single.path;
@@ -153,541 +156,680 @@ class _SettingsPageState extends State<SettingsPage> {
       activePage: 'settings',
       title: 'إعدادات النظام',
       body: BlocConsumer<SettingsCubit, SettingsState>(
-          listener: (context, state) {
-            if (state is SettingsLoaded) {
-              if (state.message != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      state.message!,
-                      style: const TextStyle(fontFamily: 'Cairo'),
-                    ),
-                    backgroundColor: ColorPalette.successColor,
-                  ),
-                );
-              }
-              // ملء الحقول بالبيانات المحملة
-              _nameCtrl.text = state.settings.gymName;
-              _phoneCtrl.text = state.settings.gymPhone;
-              _addressCtrl.text = state.settings.gymAddress;
-              _registerCtrl.text = state.settings.commercialRegister;
-              if (_selectedLogoPath == null && state.settings.logoPath.isNotEmpty) {
-                _selectedLogoPath = state.settings.logoPath;
-              }
-              _selectedPrinter = state.settings.defaultA4Printer.isEmpty ? null : state.settings.defaultA4Printer;
-            } else if (state is SettingsError) {
+        listener: (context, state) {
+          if (state is SettingsLoaded) {
+            if (state.message != null) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    state.message,
+                    state.message!,
                     style: const TextStyle(fontFamily: 'Cairo'),
                   ),
-                  backgroundColor: ColorPalette.errorColor,
+                  backgroundColor: ColorPalette.successColor,
                 ),
               );
             }
-          },
-          builder: (context, state) {
-            if (state is SettingsLoading || state is SettingsInitial) {
-              return const Center(child: CircularProgressIndicator());
+            // ملء الحقول بالبيانات المحملة
+            _nameCtrl.text = state.settings.gymName;
+            _phoneCtrl.text = state.settings.gymPhone;
+            _addressCtrl.text = state.settings.gymAddress;
+            _registerCtrl.text = state.settings.commercialRegister;
+            if (_selectedLogoPath == null &&
+                state.settings.logoPath.isNotEmpty) {
+              _selectedLogoPath = state.settings.logoPath;
             }
+            _selectedPrinter = state.settings.defaultA4Printer.isEmpty
+                ? null
+                : state.settings.defaultA4Printer;
+          } else if (state is SettingsError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  state.message,
+                  style: const TextStyle(fontFamily: 'Cairo'),
+                ),
+                backgroundColor: ColorPalette.errorColor,
+              ),
+            );
+          }
+        },
+        builder: (context, state) {
+          if (state is SettingsLoading || state is SettingsInitial) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-            if (state is SettingsLoaded) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.all(32.0),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 800),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 1. كارت بيانات الجيم
-                          _buildSectionHeader('بيانات الجيم الأساسية', Icons.business),
-                          const SizedBox(height: 16),
-                          Card(
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            child: Padding(
-                              padding: const EdgeInsets.all(24.0),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // Logo picker
-                                      GestureDetector(
-                                        onTap: _pickLogo,
-                                        child: Container(
-                                          width: 100,
-                                          height: 100,
-                                          decoration: BoxDecoration(
-                                            color: theme.colorScheme.surfaceContainerHighest,
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(color: ColorPalette.primaryColor.withValues(alpha: 0.5)),
-                                          ),
-                                          child: _selectedLogoPath != null && _selectedLogoPath!.isNotEmpty
-                                              ? ClipRRect(
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  child: Image.file(
-                                                    File(_selectedLogoPath!),
-                                                    fit: BoxFit.cover,
-                                                  ),
-                                                )
-                                              : const Column(
-                                                  mainAxisAlignment: MainAxisAlignment.center,
-                                                  children: [
-                                                    Icon(Icons.add_a_photo, color: ColorPalette.primaryColor),
-                                                    SizedBox(height: 4),
-                                                    Text('شعار الجيم', style: TextStyle(fontSize: 10)),
-                                                  ],
-                                                ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: _buildTextField(
-                                                    controller: _nameCtrl,
-                                                    label: 'اسم الجيم *',
-                                                    icon: Icons.fitness_center,
-                                                    validator: (v) =>
-                                                        (v == null || v.trim().isEmpty) ? 'الاسم مطلوب' : null,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 16),
-                                                Expanded(
-                                                  child: _buildTextField(
-                                                    controller: _phoneCtrl,
-                                                    label: 'رقم الهاتف',
-                                                    icon: Icons.phone,
-                                                    keyboardType: TextInputType.phone,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 16),
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: _buildTextField(
-                                                    controller: _addressCtrl,
-                                                    label: 'العنوان',
-                                                    icon: Icons.location_on,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 16),
-                                                Expanded(
-                                                  child: _buildTextField(
-                                                    controller: _registerCtrl,
-                                                    label: 'السجل التجاري',
-                                                    icon: Icons.app_registration,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 24),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 48,
-                                    child: ElevatedButton.icon(
-                                      onPressed: () => _save(state),
-                                      icon: const Icon(Icons.save, color: Colors.white),
-                                      label: const Text('حفظ التغييرات'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: ColorPalette.primaryColor,
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(10),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+          if (state is SettingsLoaded) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(32.0),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 1. كارت بيانات الجيم
+                        _buildSectionHeader(
+                          'بيانات الجيم الأساسية',
+                          Icons.business,
+                        ),
+                        const SizedBox(height: 16),
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          const SizedBox(height: 32),
-
-                          // 2. كارت إعدادات الطباعة
-                          _buildSectionHeader('إعدادات الطباعة (Printer Settings)', Icons.print),
-                          const SizedBox(height: 16),
-                          Card(
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            child: Padding(
-                              padding: const EdgeInsets.all(24.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'الطابعة الافتراضية للفواتير (A4)',
-                                              style: theme.textTheme.titleMedium?.copyWith(
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'حدد الطابعة التي سيتم إرسال الفواتير إليها مباشرة دون الحاجة لاختيارها في كل مرة.',
-                                              style: theme.textTheme.bodySmall,
-                                            ),
-                                          ],
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Logo picker
+                                    GestureDetector(
+                                      onTap: _pickLogo,
+                                      child: Container(
+                                        width: 100,
+                                        height: 100,
+                                        decoration: BoxDecoration(
+                                          color: theme
+                                              .colorScheme
+                                              .surfaceContainerHighest,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: ColorPalette.primaryColor
+                                                .withValues(alpha: 0.5),
+                                          ),
                                         ),
-                                      ),
-                                      IconButton.filledTonal(
-                                        onPressed: _loadAvailablePrinters,
-                                        icon: _isLoadingPrinters
-                                            ? const SizedBox(
-                                                width: 18,
-                                                height: 18,
-                                                child: CircularProgressIndicator(strokeWidth: 2),
+                                        child:
+                                            _selectedLogoPath != null &&
+                                                _selectedLogoPath!.isNotEmpty
+                                            ? ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                child: Image.file(
+                                                  File(_selectedLogoPath!),
+                                                  fit: BoxFit.cover,
+                                                ),
                                               )
-                                            : const Icon(Icons.refresh),
-                                        tooltip: 'تحديث قائمة الطابعات',
+                                            : const Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(
+                                                    Icons.add_a_photo,
+                                                    color: ColorPalette
+                                                        .primaryColor,
+                                                  ),
+                                                  SizedBox(height: 4),
+                                                  Text(
+                                                    'شعار الجيم',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                       ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 20),
-                                  if (_isLoadingPrinters)
-                                    const LinearProgressIndicator()
-                                  else if (_availablePrinters.isEmpty && (_selectedPrinter == null || _selectedPrinter!.isEmpty))
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.warning_amber_rounded, color: ColorPalette.warningColor),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            'لم يتم العثور على طابعات متصلة بالنظام. يرجى التحقق من التوصيل وإعادة المحاولة.',
-                                            style: TextStyle(color: theme.colorScheme.error, fontFamily: 'Cairo'),
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  else
-                                    DropdownButtonFormField<String>(
-                                      value: (_selectedPrinter == null || _selectedPrinter!.isEmpty) ? '' : _selectedPrinter,
-                                      hint: const Text('اختر الطابعة الافتراضية من القائمة', style: TextStyle(fontFamily: 'Cairo')),
-                                      isExpanded: true,
-                                      decoration: InputDecoration(
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        prefixIcon: const Icon(Icons.print_outlined),
-                                      ),
-                                      items: [
-                                        const DropdownMenuItem<String>(
-                                          value: '',
-                                          child: Text('لا توجد طابعة افتراضية (عرض معاينة الفاتورة قبل الطباعة)', style: TextStyle(fontFamily: 'Cairo')),
-                                        ),
-                                        if (_selectedPrinter != null &&
-                                            _selectedPrinter!.isNotEmpty &&
-                                            !_availablePrinters.any((p) => p.name == _selectedPrinter))
-                                          DropdownMenuItem<String>(
-                                            value: _selectedPrinter,
-                                            child: Text('$_selectedPrinter (غير متصلة حالياً)', style: const TextStyle(fontFamily: 'Cairo')),
-                                          ),
-                                        ..._availablePrinters.map((printer) {
-                                          return DropdownMenuItem<String>(
-                                            value: printer.name,
-                                            child: Text(printer.name, style: const TextStyle(fontFamily: 'Cairo')),
-                                          );
-                                        }),
-                                      ],
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _selectedPrinter = value;
-                                        });
-                                        context.read<SettingsCubit>().saveGymInfo(
-                                              name: _nameCtrl.text.trim(),
-                                              phone: _phoneCtrl.text.trim(),
-                                              address: _addressCtrl.text.trim(),
-                                              register: _registerCtrl.text.trim(),
-                                              logoPath: _selectedLogoPath,
-                                              defaultA4Printer: value,
-                                            );
-                                      },
                                     ),
-                                  if (_selectedPrinter != null && _selectedPrinter!.isNotEmpty) ...[
-                                    const SizedBox(height: 12),
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.check_circle_outline, color: ColorPalette.successColor, size: 18),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          'سيتم إرسال الفاتورة تلقائياً إلى: $_selectedPrinter',
-                                          style: const TextStyle(color: ColorPalette.successColor, fontSize: 13, fontFamily: 'Cairo'),
-                                        ),
-                                      ],
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: _buildTextField(
+                                                  controller: _nameCtrl,
+                                                  label: 'اسم الجيم *',
+                                                  icon: Icons.fitness_center,
+                                                  validator: (v) =>
+                                                      (v == null ||
+                                                          v.trim().isEmpty)
+                                                      ? 'الاسم مطلوب'
+                                                      : null,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: _buildTextField(
+                                                  controller: _phoneCtrl,
+                                                  label: 'رقم الهاتف',
+                                                  icon: Icons.phone,
+                                                  keyboardType:
+                                                      TextInputType.phone,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: _buildTextField(
+                                                  controller: _addressCtrl,
+                                                  label: 'العنوان',
+                                                  icon: Icons.location_on,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: _buildTextField(
+                                                  controller: _registerCtrl,
+                                                  label: 'السجل التجاري',
+                                                  icon: Icons.app_registration,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-
-                          // 2. كارت المظهر والوضع الليلي
-                          _buildSectionHeader('مظهر التطبيق (Theme)', Icons.palette),
-                          const SizedBox(height: 16),
-                          Card(
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            child: Padding(
-                              padding: const EdgeInsets.all(24.0),
-                              child: Row(
-                                children: [
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'الوضع الحالي: ${state.settings.themeMode == 'light' ? 'الوضع النهاري' : 'الوضع الليلي'}',
-                                        style: theme.textTheme.titleMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'تبديل مظهر واجهة النظام بالكامل للوضع المناسب لك.',
-                                        style: theme.textTheme.bodySmall,
-                                      ),
-                                    ],
-                                  ),
-                                  const Spacer(),
-                                  ElevatedButton.icon(
-                                    onPressed: () {
-                                      context.read<SettingsCubit>().toggleTheme();
-                                    },
-                                    icon: Icon(
-                                      state.settings.themeMode == 'light'
-                                          ? Icons.dark_mode
-                                          : Icons.light_mode,
+                                ),
+                                const SizedBox(height: 24),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 48,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _save(state),
+                                    icon: const Icon(
+                                      Icons.save,
+                                      color: Colors.white,
                                     ),
-                                    label: Text(
-                                      state.settings.themeMode == 'light'
-                                          ? 'تفعيل الوضع الليلي'
-                                          : 'تفعيل الوضع النهاري',
-                                    ),
+                                    label: const Text('حفظ التغييرات'),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: state.settings.themeMode == 'light'
-                                          ? ColorPalette.secondaryColor
-                                          : Colors.white,
-                                      foregroundColor: state.settings.themeMode == 'light'
-                                          ? Colors.white
-                                          : Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-
-                          // 3. كارت قاعدة البيانات والنسخ الاحتياطي
-                          _buildSectionHeader('موقع قاعدة البيانات المحلية', Icons.storage),
-                          const SizedBox(height: 16),
-                          Card(
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            child: Padding(
-                              padding: const EdgeInsets.all(24.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.info_outline, color: ColorPalette.infoColor),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          'يتم تخزين كافة بيانات المشتركين والمدفوعات محلياً في هذا المسار. يمكنك نسخ الملف يدوياً لعمل نسخ احتياطي.',
-                                          style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: TextFormField(
-                                          readOnly: true,
-                                          initialValue: _dbPath,
-                                          key: ValueKey(_dbPath),
-                                          decoration: InputDecoration(
-                                            labelText: 'مسار ملف قاعدة البيانات',
-                                            border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      SizedBox(
-                                        height: 54,
-                                        child: ElevatedButton.icon(
-                                          onPressed: () {
-                                            Clipboard.setData(ClipboardData(text: _dbPath));
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('تم نسخ مسار قاعدة البيانات بنجاح!'),
-                                                backgroundColor: ColorPalette.infoColor,
-                                              ),
-                                            );
-                                          },
-                                          icon: const Icon(Icons.copy),
-                                          label: const Text('نسخ المسار'),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: ColorPalette.infoColor,
-                                            foregroundColor: Colors.white,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(10),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-
-                          // 4. كارت التحديث
-                          _buildSectionHeader('تحديث النظام', Icons.system_update),
-                          const SizedBox(height: 16),
-                          Card(
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            child: Padding(
-                              padding: const EdgeInsets.all(24.0),
-                              child: Row(
-                                children: [
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'الإصدار الحالي: $_currentAppVersion',
-                                        style: theme.textTheme.titleMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'آخر إصدار متاح: $_latestAppVersion',
-                                        style: theme.textTheme.bodySmall,
-                                      ),
-                                    ],
-                                  ),
-                                  const Spacer(),
-                                  if (_isCheckingUpdate)
-                                    const CircularProgressIndicator()
-                                  else if (_currentAppVersion == _latestAppVersion || _latestAppVersion == 'غير متوفر' || _latestAppVersion == 'خطأ')
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.check_circle, color: ColorPalette.successColor),
-                                        const SizedBox(width: 8),
-                                        const Text('التطبيق محدث', style: TextStyle(color: ColorPalette.successColor, fontWeight: FontWeight.bold)),
-                                      ],
-                                    )
-                                  else
-                                    UpdatWidget(
-                                      currentVersion: _currentAppVersion,
-                                      getLatestVersion: () async {
-                                        return _latestAppVersion;
-                                      },
-                                      getBinaryUrl: (version) async {
-                                        return await GithubUpdateService(
-                                                owner: 'AymanTegany',
-                                                repo: 'sparta-gym-releases')
-                                            .getBinaryUrl(version);
-                                      },
-                                      appName: 'Sparta Gym',
-                                      updateChipBuilder: buildArabicUpdateChip,
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-
-                          // 5. كارت تسجيل الخروج
-                          _buildSectionHeader('تسجيل الخروج', Icons.logout),
-                          const SizedBox(height: 16),
-                          Card(
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            child: Padding(
-                              padding: const EdgeInsets.all(24.0),
-                              child: Row(
-                                children: [
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'تسجيل الخروج من النظام',
-                                        style: theme.textTheme.titleMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'تسجيل الخروج كمسؤول والعودة لشاشة الدخول الرئيسية.',
-                                        style: theme.textTheme.bodySmall,
-                                      ),
-                                    ],
-                                  ),
-                                  const Spacer(),
-                                  ElevatedButton.icon(
-                                    onPressed: () {
-                                      _showLogoutDialog(context);
-                                    },
-                                    icon: const Icon(Icons.logout, color: Colors.white),
-                                    label: const Text('تسجيل الخروج'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.redAccent,
+                                      backgroundColor:
+                                          ColorPalette.primaryColor,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // 2. كارت إعدادات الطباعة
+                        _buildSectionHeader(
+                          'إعدادات الطباعة (Printer Settings)',
+                          Icons.print,
+                        ),
+                        const SizedBox(height: 16),
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'الطابعة الافتراضية للفواتير (A4)',
+                                            style: theme.textTheme.titleMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'حدد الطابعة التي سيتم إرسال الفواتير إليها مباشرة دون الحاجة لاختيارها في كل مرة.',
+                                            style: theme.textTheme.bodySmall,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton.filledTonal(
+                                      onPressed: _loadAvailablePrinters,
+                                      icon: _isLoadingPrinters
+                                          ? const SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : const Icon(Icons.refresh),
+                                      tooltip: 'تحديث قائمة الطابعات',
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                if (_isLoadingPrinters)
+                                  const LinearProgressIndicator()
+                                else if (_availablePrinters.isEmpty &&
+                                    (_selectedPrinter == null ||
+                                        _selectedPrinter!.isEmpty))
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.warning_amber_rounded,
+                                        color: ColorPalette.warningColor,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'لم يتم العثور على طابعات متصلة بالنظام. يرجى التحقق من التوصيل وإعادة المحاولة.',
+                                          style: TextStyle(
+                                            color: theme.colorScheme.error,
+                                            fontFamily: 'Cairo',
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                else
+                                  DropdownButtonFormField<String>(
+                                    value:
+                                        (_selectedPrinter == null ||
+                                            _selectedPrinter!.isEmpty)
+                                        ? ''
+                                        : _selectedPrinter,
+                                    hint: const Text(
+                                      'اختر الطابعة الافتراضية من القائمة',
+                                      style: TextStyle(fontFamily: 'Cairo'),
+                                    ),
+                                    isExpanded: true,
+                                    decoration: InputDecoration(
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      prefixIcon: const Icon(
+                                        Icons.print_outlined,
+                                      ),
+                                    ),
+                                    items: [
+                                      const DropdownMenuItem<String>(
+                                        value: '',
+                                        child: Text(
+                                          'لا توجد طابعة افتراضية (عرض معاينة الفاتورة قبل الطباعة)',
+                                          style: TextStyle(fontFamily: 'Cairo'),
+                                        ),
+                                      ),
+                                      if (_selectedPrinter != null &&
+                                          _selectedPrinter!.isNotEmpty &&
+                                          !_availablePrinters.any(
+                                            (p) => p.name == _selectedPrinter,
+                                          ))
+                                        DropdownMenuItem<String>(
+                                          value: _selectedPrinter,
+                                          child: Text(
+                                            '$_selectedPrinter (غير متصلة حالياً)',
+                                            style: const TextStyle(
+                                              fontFamily: 'Cairo',
+                                            ),
+                                          ),
+                                        ),
+                                      ..._availablePrinters.map((printer) {
+                                        return DropdownMenuItem<String>(
+                                          value: printer.name,
+                                          child: Text(
+                                            printer.name,
+                                            style: const TextStyle(
+                                              fontFamily: 'Cairo',
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                    ],
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedPrinter = value;
+                                      });
+                                      context.read<SettingsCubit>().saveGymInfo(
+                                        name: _nameCtrl.text.trim(),
+                                        phone: _phoneCtrl.text.trim(),
+                                        address: _addressCtrl.text.trim(),
+                                        register: _registerCtrl.text.trim(),
+                                        logoPath: _selectedLogoPath,
+                                        defaultA4Printer: value,
+                                      );
+                                    },
+                                  ),
+                                if (_selectedPrinter != null &&
+                                    _selectedPrinter!.isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.check_circle_outline,
+                                        color: ColorPalette.successColor,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'سيتم إرسال الفاتورة تلقائياً إلى: $_selectedPrinter',
+                                        style: const TextStyle(
+                                          color: ColorPalette.successColor,
+                                          fontSize: 13,
+                                          fontFamily: 'Cairo',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // 2. كارت المظهر والوضع الليلي
+                        _buildSectionHeader(
+                          'مظهر التطبيق (Theme)',
+                          Icons.palette,
+                        ),
+                        const SizedBox(height: 16),
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Row(
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'الوضع الحالي: ${state.settings.themeMode == 'light' ? 'الوضع النهاري' : 'الوضع الليلي'}',
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'تبديل مظهر واجهة النظام بالكامل للوضع المناسب لك.',
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                                const Spacer(),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    context.read<SettingsCubit>().toggleTheme();
+                                  },
+                                  icon: Icon(
+                                    state.settings.themeMode == 'light'
+                                        ? Icons.dark_mode
+                                        : Icons.light_mode,
+                                  ),
+                                  label: Text(
+                                    state.settings.themeMode == 'light'
+                                        ? 'تفعيل الوضع الليلي'
+                                        : 'تفعيل الوضع النهاري',
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        state.settings.themeMode == 'light'
+                                        ? ColorPalette.secondaryColor
+                                        : Colors.white,
+                                    foregroundColor:
+                                        state.settings.themeMode == 'light'
+                                        ? Colors.white
+                                        : Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // 3. كارت قاعدة البيانات والنسخ الاحتياطي
+                        _buildSectionHeader(
+                          'موقع قاعدة البيانات المحلية',
+                          Icons.storage,
+                        ),
+                        const SizedBox(height: 16),
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.info_outline,
+                                      color: ColorPalette.infoColor,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'يتم تخزين كافة بيانات المشتركين والمدفوعات محلياً في هذا المسار. يمكنك نسخ الملف يدوياً لعمل نسخ احتياطي.',
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(height: 1.4),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        readOnly: true,
+                                        initialValue: _dbPath,
+                                        key: ValueKey(_dbPath),
+                                        decoration: InputDecoration(
+                                          labelText: 'مسار ملف قاعدة البيانات',
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    SizedBox(
+                                      height: 54,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () {
+                                          Clipboard.setData(
+                                            ClipboardData(text: _dbPath),
+                                          );
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'تم نسخ مسار قاعدة البيانات بنجاح!',
+                                              ),
+                                              backgroundColor:
+                                                  ColorPalette.infoColor,
+                                            ),
+                                          );
+                                        },
+                                        icon: const Icon(Icons.copy),
+                                        label: const Text('نسخ المسار'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              ColorPalette.infoColor,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // 4. كارت التحديث
+                        _buildSectionHeader(
+                          'تحديث النظام',
+                          Icons.system_update,
+                        ),
+                        const SizedBox(height: 16),
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Row(
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'الإصدار الحالي: $_currentAppVersion',
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'آخر إصدار متاح: $_latestAppVersion',
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                                const Spacer(),
+                                if (_isCheckingUpdate)
+                                  const CircularProgressIndicator()
+                                else if (_currentAppVersion ==
+                                        _latestAppVersion ||
+                                    _latestAppVersion == 'غير متوفر' ||
+                                    _latestAppVersion == 'خطأ')
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.check_circle,
+                                        color: ColorPalette.successColor,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Text(
+                                        'التطبيق محدث',
+                                        style: TextStyle(
+                                          color: ColorPalette.successColor,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                else
+                                  UpdatWidget(
+                                    currentVersion: _currentAppVersion,
+                                    getLatestVersion: () async {
+                                      return _latestAppVersion;
+                                    },
+                                    getBinaryUrl: (version) async {
+                                      return await GithubUpdateService(
+                                        owner: 'AymanTegany',
+                                        repo: 'sparta_gym',
+                                      ).getBinaryUrl(version);
+                                    },
+                                    appName: 'Sparta Gym',
+                                    updateChipBuilder: buildArabicUpdateChip,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // 5. كارت تسجيل الخروج
+                        _buildSectionHeader('تسجيل الخروج', Icons.logout),
+                        const SizedBox(height: 16),
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Row(
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'تسجيل الخروج من النظام',
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'تسجيل الخروج كمسؤول والعودة لشاشة الدخول الرئيسية.',
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                                const Spacer(),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    _showLogoutDialog(context);
+                                  },
+                                  icon: const Icon(
+                                    Icons.logout,
+                                    color: Colors.white,
+                                  ),
+                                  label: const Text('تسجيل الخروج'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.redAccent,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              );
-            }
+              ),
+            );
+          }
 
-            return const SizedBox();
-          },
-        ),
-      );
-    }
+          return const SizedBox();
+        },
+      ),
+    );
+  }
 
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
@@ -719,7 +861,10 @@ class _SettingsPageState extends State<SettingsPage> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: ColorPalette.primaryColor, width: 2),
+          borderSide: const BorderSide(
+            color: ColorPalette.primaryColor,
+            width: 2,
+          ),
         ),
       ),
     );
@@ -740,8 +885,10 @@ class _SettingsPageState extends State<SettingsPage> {
             onPressed: () {
               Navigator.pop(ctx);
               context.read<AuthCubit>().logout();
-              Navigator.of(context, rootNavigator: true)
-                  .pushNamedAndRemoveUntil('/', (route) => false);
+              Navigator.of(
+                context,
+                rootNavigator: true,
+              ).pushNamedAndRemoveUntil('/', (route) => false);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
