@@ -310,6 +310,17 @@ class _ComprehensiveReportsPageState extends State<ComprehensiveReportsPage> {
                                       const SizedBox(width: 16),
                                       Expanded(
                                         child: _buildSummaryCard(
+                                          title: 'مبيعات المخزون',
+                                          amount: stats.currentPosSalesRevenue,
+                                          previousAmount: stats.previousPosSalesRevenue,
+                                          icon: Icons.shopping_cart_rounded,
+                                          color: Colors.orange,
+                                          isDark: isDark,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: _buildSummaryCard(
                                           title: 'إجمالي المصروفات',
                                           amount: stats.currentTotalExpenses,
                                           previousAmount: stats.previousTotalExpenses,
@@ -340,6 +351,15 @@ class _ComprehensiveReportsPageState extends State<ComprehensiveReportsPage> {
                                         previousAmount: stats.previousTotalRevenue,
                                         icon: Icons.trending_up_rounded,
                                         color: Colors.purple,
+                                        isDark: isDark,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      _buildSummaryCard(
+                                        title: 'مبيعات المخزون',
+                                        amount: stats.currentPosSalesRevenue,
+                                        previousAmount: stats.previousPosSalesRevenue,
+                                        icon: Icons.shopping_cart_rounded,
+                                        color: Colors.orange,
                                         isDark: isDark,
                                       ),
                                       const SizedBox(height: 16),

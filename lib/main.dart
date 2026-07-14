@@ -27,6 +27,9 @@ import 'features/discount_codes/presentation/cubit/discount_codes_cubit.dart';
 import 'features/shifts/presentation/cubit/shifts_cubit.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'init_dependencies.dart';
+import 'package:updat/updat_window_manager.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'core/services/github_update_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +48,10 @@ void main() async {
 
   // تهيئة بيانات التاريخ والوقت
   await initializeDateFormatting('ar', null);
+
+  // تهيئة معلومات الإصدار للتحديث التلقائي
+  final packageInfo = await PackageInfo.fromPlatform();
+  final currentVersion = packageInfo.version;
 
   runApp(
     MultiBlocProvider(
@@ -96,13 +103,15 @@ void main() async {
             ..startScheduler(),
         ),
       ],
-      child: const SpartaGymApp(),
+      child: SpartaGymApp(currentVersion: currentVersion),
     ),
   );
 }
 
 class SpartaGymApp extends StatelessWidget {
-  const SpartaGymApp({super.key});
+  final String currentVersion;
+  
+  const SpartaGymApp({super.key, required this.currentVersion});
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +125,19 @@ class SpartaGymApp extends StatelessWidget {
         }
 
         return MaterialApp(
+          builder: (context, child) {
+            final updateService = GithubUpdateService(
+              owner: 'AymanTegany', 
+              repo: 'sparta-gym-releases'
+            );
+            return UpdatWindowManager(
+              appName: 'Sparta Gym',
+              currentVersion: currentVersion,
+              getLatestVersion: updateService.getLatestVersion,
+              getBinaryUrl: updateService.getBinaryUrl,
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
           title: 'Sparta Gym',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,

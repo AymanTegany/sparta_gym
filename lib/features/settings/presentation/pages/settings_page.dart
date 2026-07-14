@@ -6,6 +6,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:file_picker/file_picker.dart';
 import 'package:printing/printing.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:updat/updat.dart';
+import '../../../../core/services/github_update_service.dart';
+import '../../../../core/common/widgets/arabic_update_builders.dart';
 
 import '../../../../core/theme/color_palette.dart';
 import '../../../../core/common/widgets/sidebar_layout.dart';
@@ -32,6 +36,10 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isLoadingPrinters = false;
   String? _selectedPrinter;
 
+  String _currentAppVersion = 'جاري التحميل...';
+  String _latestAppVersion = 'جاري التحميل...';
+  bool _isCheckingUpdate = true;
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +52,33 @@ class _SettingsPageState extends State<SettingsPage> {
     context.read<SettingsCubit>().loadSettings();
     _getDatabasePath();
     _loadAvailablePrinters();
+    _checkUpdateInfo();
+  }
+
+  Future<void> _checkUpdateInfo() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = packageInfo.version;
+      
+      final updateService = GithubUpdateService(owner: 'AymanTegany', repo: 'sparta-gym-releases');
+      final latestVersion = await updateService.getLatestVersion();
+      
+      if (mounted) {
+        setState(() {
+          _currentAppVersion = currentVersion;
+          _latestAppVersion = latestVersion.isEmpty ? 'غير متوفر' : latestVersion;
+          _isCheckingUpdate = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _currentAppVersion = 'خطأ';
+          _latestAppVersion = 'خطأ';
+          _isCheckingUpdate = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadAvailablePrinters() async {
@@ -537,6 +572,63 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                           const SizedBox(height: 32),
 
+                          // 4. كارت التحديث
+                          _buildSectionHeader('تحديث النظام', Icons.system_update),
+                          const SizedBox(height: 16),
+                          Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Row(
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'الإصدار الحالي: $_currentAppVersion',
+                                        style: theme.textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'آخر إصدار متاح: $_latestAppVersion',
+                                        style: theme.textTheme.bodySmall,
+                                      ),
+                                    ],
+                                  ),
+                                  const Spacer(),
+                                  if (_isCheckingUpdate)
+                                    const CircularProgressIndicator()
+                                  else if (_currentAppVersion == _latestAppVersion || _latestAppVersion == 'غير متوفر' || _latestAppVersion == 'خطأ')
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.check_circle, color: ColorPalette.successColor),
+                                        const SizedBox(width: 8),
+                                        const Text('التطبيق محدث', style: TextStyle(color: ColorPalette.successColor, fontWeight: FontWeight.bold)),
+                                      ],
+                                    )
+                                  else
+                                    UpdatWidget(
+                                      currentVersion: _currentAppVersion,
+                                      getLatestVersion: () async {
+                                        return _latestAppVersion;
+                                      },
+                                      getBinaryUrl: (version) async {
+                                        return await GithubUpdateService(
+                                                owner: 'AymanTegany',
+                                                repo: 'sparta-gym-releases')
+                                            .getBinaryUrl(version);
+                                      },
+                                      appName: 'Sparta Gym',
+                                      updateChipBuilder: buildArabicUpdateChip,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
 
                           // 5. كارت تسجيل الخروج
                           _buildSectionHeader('تسجيل الخروج', Icons.logout),

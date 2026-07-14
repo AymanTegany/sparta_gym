@@ -11,6 +11,10 @@ import '../../../../core/theme/color_palette.dart';
 import '../cubit/dashboard_cubit.dart';
 import '../cubit/dashboard_state.dart';
 import '../../../../core/common/widgets/sidebar_layout.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:updat/updat.dart';
+import '../../../../core/services/github_update_service.dart';
+import '../../../../core/common/widgets/arabic_update_builders.dart';
 
 // Dialogs for Quick Actions
 import '../../../members/presentation/widgets/add_member_dialog.dart';
@@ -57,13 +61,61 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final ScrollController _scrollController = ScrollController();
+  static bool _hasCheckedForUpdates = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DashboardCubit>().loadDashboard();
+      if (!_hasCheckedForUpdates) {
+        _hasCheckedForUpdates = true;
+        _checkForUpdateAndShowDialog();
+      }
     });
+  }
+
+  Future<void> _checkForUpdateAndShowDialog() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = packageInfo.version;
+      
+      final updateService = GithubUpdateService(owner: 'AymanTegany', repo: 'sparta-gym-releases');
+      final latestVersion = await updateService.getLatestVersion();
+      
+      if (latestVersion.isNotEmpty && latestVersion != currentVersion && mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.system_update, color: ColorPalette.primaryColor),
+                SizedBox(width: 10),
+                Text('تحديث جديد متوفر!'),
+              ],
+            ),
+            content: Text(
+              'يتوفر الآن الإصدار $latestVersion من النظام.\nأنت تستخدم حالياً الإصدار $currentVersion.\n\nاضغط على الزر بالأسفل للبدء في التحديث للحصول على أحدث الميزات.'
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('ذكرني لاحقاً', style: TextStyle(color: Colors.grey)),
+              ),
+              UpdatWidget(
+                currentVersion: currentVersion,
+                getLatestVersion: () async => latestVersion,
+                getBinaryUrl: (v) async => await updateService.getBinaryUrl(v),
+                appName: 'Sparta Gym',
+                updateChipBuilder: buildArabicUpdateChip,
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error checking update: $e');
+    }
   }
 
   @override

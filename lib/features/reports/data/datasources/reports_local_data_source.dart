@@ -83,7 +83,7 @@ class ReportsLocalDataSourceImpl implements ReportsLocalDataSource {
         '''
         SELECT title, category, amount, date, notes 
         FROM expenses 
-        WHERE date >= ? AND date <= ?
+        WHERE createdAt >= ? AND createdAt <= ?
       ''',
         [startStr, endStr],
       );
@@ -129,7 +129,7 @@ class ReportsLocalDataSourceImpl implements ReportsLocalDataSource {
         '''
         SELECT SUM(finalAmount) as total 
         FROM pos_sales 
-        WHERE date >= ? AND date <= ?
+        WHERE createdAt >= ? AND createdAt <= ?
       ''',
         [startStr, endStr],
       );
@@ -238,7 +238,7 @@ class ReportsLocalDataSourceImpl implements ReportsLocalDataSource {
       '''
       SELECT title, category, amount, date, notes 
       FROM expenses 
-      WHERE date >= ? AND date <= ?
+      WHERE createdAt >= ? AND createdAt <= ?
     ''',
       [startStr, endStr],
     );
@@ -258,7 +258,7 @@ class ReportsLocalDataSourceImpl implements ReportsLocalDataSource {
       '''
       SELECT finalAmount, date, paymentMethod 
       FROM pos_sales 
-      WHERE date >= ? AND date <= ?
+      WHERE createdAt >= ? AND createdAt <= ?
     ''',
       [startStr, endStr],
     );
