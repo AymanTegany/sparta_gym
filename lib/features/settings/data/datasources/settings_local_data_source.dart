@@ -18,6 +18,8 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
   static const _kThemeMode = 'theme_mode';
   static const _kLogoPath = 'logo_path';
   static const _kDefaultA4Printer = 'default_a4_printer';
+  static const _kWhatsappAccessToken = 'whatsapp_access_token';
+  static const _kWhatsappPhoneNumberId = 'whatsapp_phone_number_id';
 
   @override
   Future<GymSettings> getSettings() async {
@@ -28,6 +30,8 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
     final theme = sharedPreferences.getString(_kThemeMode) ?? 'light';
     final logoPath = sharedPreferences.getString(_kLogoPath) ?? '';
     final defaultA4Printer = sharedPreferences.getString(_kDefaultA4Printer) ?? '';
+    final whatsappAccessToken = sharedPreferences.getString(_kWhatsappAccessToken) ?? '';
+    final whatsappPhoneNumberId = sharedPreferences.getString(_kWhatsappPhoneNumberId) ?? '';
 
     return GymSettings(
       gymName: name,
@@ -37,6 +41,8 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
       themeMode: theme,
       logoPath: logoPath,
       defaultA4Printer: defaultA4Printer,
+      whatsappAccessToken: whatsappAccessToken,
+      whatsappPhoneNumberId: whatsappPhoneNumberId,
     );
   }
 
@@ -49,5 +55,7 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
     await sharedPreferences.setString(_kThemeMode, settings.themeMode);
     await sharedPreferences.setString(_kLogoPath, settings.logoPath);
     await sharedPreferences.setString(_kDefaultA4Printer, settings.defaultA4Printer);
+    await sharedPreferences.setString(_kWhatsappAccessToken, settings.whatsappAccessToken);
+    await sharedPreferences.setString(_kWhatsappPhoneNumberId, settings.whatsappPhoneNumberId);
   }
 }

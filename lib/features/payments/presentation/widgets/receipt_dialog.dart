@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/color_palette.dart';
 import '../../domain/entities/payment_entity.dart';
+import '../../../../core/services/whatsapp_api_service.dart';
 import '../../../settings/presentation/cubit/settings_cubit.dart';
 import '../../../settings/presentation/cubit/settings_state.dart';
 import '../../../settings/domain/entities/gym_settings_entity.dart';
@@ -231,6 +232,31 @@ ${payment.notes != null ? '- ملاحظات: ${payment.notes}\n' : ''}
     String cleanedPhone = phone.replaceAll(RegExp(r'\D'), '');
     if (cleanedPhone.startsWith('0')) {
       cleanedPhone = '2$cleanedPhone';
+    }
+
+    final accessToken = settings.whatsappAccessToken;
+    final phoneNumberId = settings.whatsappPhoneNumberId;
+
+    if (accessToken.isNotEmpty && phoneNumberId.isNotEmpty) {
+      final errorMsg = await WhatsappApiService().sendMessage(
+        phoneNumber: cleanedPhone,
+        message: text,
+        accessToken: accessToken,
+        phoneNumberId: phoneNumberId,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              errorMsg ?? 'تم إرسال الإيصال عبر واتساب',
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: errorMsg == null ? ColorPalette.successColor : ColorPalette.errorColor,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
     }
 
     final String encodedText = Uri.encodeComponent(text);

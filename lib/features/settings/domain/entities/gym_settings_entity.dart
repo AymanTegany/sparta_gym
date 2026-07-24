@@ -9,6 +9,8 @@ class GymSettings extends Equatable {
   final String themeMode; // 'light' or 'dark'
   final String logoPath;
   final String defaultA4Printer;
+  final String whatsappAccessToken;
+  final String whatsappPhoneNumberId;
 
   const GymSettings({
     required this.gymName,
@@ -18,6 +20,8 @@ class GymSettings extends Equatable {
     required this.themeMode,
     required this.logoPath,
     required this.defaultA4Printer,
+    required this.whatsappAccessToken,
+    required this.whatsappPhoneNumberId,
   });
 
   /// قيم افتراضية للإعدادات عند أول تشغيل
@@ -30,6 +34,8 @@ class GymSettings extends Equatable {
       themeMode: 'light',
       logoPath: '',
       defaultA4Printer: '',
+      whatsappAccessToken: '',
+      whatsappPhoneNumberId: '',
     );
   }
 
@@ -41,6 +47,8 @@ class GymSettings extends Equatable {
     String? themeMode,
     String? logoPath,
     String? defaultA4Printer,
+    String? whatsappAccessToken,
+    String? whatsappPhoneNumberId,
   }) {
     return GymSettings(
       gymName: gymName ?? this.gymName,
@@ -50,6 +58,8 @@ class GymSettings extends Equatable {
       themeMode: themeMode ?? this.themeMode,
       logoPath: logoPath ?? this.logoPath,
       defaultA4Printer: defaultA4Printer ?? this.defaultA4Printer,
+      whatsappAccessToken: whatsappAccessToken ?? this.whatsappAccessToken,
+      whatsappPhoneNumberId: whatsappPhoneNumberId ?? this.whatsappPhoneNumberId,
     );
   }
 
@@ -62,5 +72,7 @@ class GymSettings extends Equatable {
         themeMode,
         logoPath,
         defaultA4Printer,
+        whatsappAccessToken,
+        whatsappPhoneNumberId,
       ];
 }

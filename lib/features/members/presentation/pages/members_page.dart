@@ -26,6 +26,9 @@ import '../../../diets/presentation/cubit/diet_plans_cubit.dart';
 import '../../../expenses/presentation/cubit/expenses_cubit.dart';
 import '../../../expenses/domain/entities/expense_entity.dart';
 import '../../../shifts/presentation/cubit/shifts_cubit.dart';
+import '../../../../core/services/whatsapp_api_service.dart';
+import '../../../settings/presentation/cubit/settings_cubit.dart';
+import '../../../settings/presentation/cubit/settings_state.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// شاشة إدارة العملاء (Members Management Page)
@@ -439,15 +442,45 @@ class _MembersPageState extends State<MembersPage> {
               onPressed: () async {
                 Navigator.pop(dialogContext);
                 final finalMessage = messageController.text;
-                final url = Uri.parse('https://wa.me/${phone.replaceAll('+', '')}?text=${Uri.encodeComponent(finalMessage)}');
-                
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                } else {
+
+                final settingsState = context.read<SettingsCubit>().state;
+                String accessToken = '';
+                String phoneNumberId = '';
+                if (settingsState is SettingsLoaded) {
+                  accessToken = settingsState.settings.whatsappAccessToken;
+                  phoneNumberId = settingsState.settings.whatsappPhoneNumberId;
+                }
+
+                if (accessToken.isNotEmpty && phoneNumberId.isNotEmpty) {
+                  final errorMsg = await WhatsappApiService().sendMessage(
+                    phoneNumber: phone,
+                    message: finalMessage,
+                    accessToken: accessToken,
+                    phoneNumberId: phoneNumberId,
+                  );
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('لا يمكن فتح تطبيق واتساب')),
+                      SnackBar(
+                        content: Text(
+                          errorMsg ?? 'تم إرسال رسالة واتساب بنجاح',
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
+                        backgroundColor: errorMsg == null ? Colors.green : Colors.red,
+                        duration: const Duration(seconds: 4),
+                      ),
                     );
+                  }
+                } else {
+                  final url = Uri.parse('https://wa.me/${phone.replaceAll('+', '')}?text=${Uri.encodeComponent(finalMessage)}');
+                  
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('لا يمكن فتح تطبيق واتساب')),
+                      );
+                    }
                   }
                 }
               },
@@ -552,15 +585,45 @@ class _MembersPageState extends State<MembersPage> {
               onPressed: () async {
                 Navigator.pop(dialogContext);
                 final finalMessage = messageController.text;
-                final url = Uri.parse('https://wa.me/${phone.replaceAll('+', '')}?text=${Uri.encodeComponent(finalMessage)}');
-                
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                } else {
+
+                final settingsState = context.read<SettingsCubit>().state;
+                String accessToken = '';
+                String phoneNumberId = '';
+                if (settingsState is SettingsLoaded) {
+                  accessToken = settingsState.settings.whatsappAccessToken;
+                  phoneNumberId = settingsState.settings.whatsappPhoneNumberId;
+                }
+
+                if (accessToken.isNotEmpty && phoneNumberId.isNotEmpty) {
+                  final errorMsg = await WhatsappApiService().sendMessage(
+                    phoneNumber: phone,
+                    message: finalMessage,
+                    accessToken: accessToken,
+                    phoneNumberId: phoneNumberId,
+                  );
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('لا يمكن فتح تطبيق واتساب')),
+                      SnackBar(
+                        content: Text(
+                          errorMsg ?? 'تم إرسال رسالة واتساب بنجاح',
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
+                        backgroundColor: errorMsg == null ? Colors.green : Colors.red,
+                        duration: const Duration(seconds: 4),
+                      ),
                     );
+                  }
+                } else {
+                  final url = Uri.parse('https://wa.me/${phone.replaceAll('+', '')}?text=${Uri.encodeComponent(finalMessage)}');
+                  
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('لا يمكن فتح تطبيق واتساب')),
+                      );
+                    }
                   }
                 }
               },

@@ -25,6 +25,8 @@ class SettingsCubit extends Cubit<SettingsState> {
     required String register,
     String? logoPath,
     String? defaultA4Printer,
+    String? whatsappAccessToken,
+    String? whatsappPhoneNumberId,
   }) async {
     if (state is! SettingsLoaded) return;
     final currentSettings = (state as SettingsLoaded).settings;
@@ -38,6 +40,8 @@ class SettingsCubit extends Cubit<SettingsState> {
       commercialRegister: register,
       logoPath: logoPath ?? currentSettings.logoPath,
       defaultA4Printer: defaultA4Printer ?? currentSettings.defaultA4Printer,
+      whatsappAccessToken: whatsappAccessToken ?? currentSettings.whatsappAccessToken,
+      whatsappPhoneNumberId: whatsappPhoneNumberId ?? currentSettings.whatsappPhoneNumberId,
     );
 
     final result = await repository.saveSettings(updated);

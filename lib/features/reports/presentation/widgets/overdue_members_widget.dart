@@ -3,6 +3,10 @@ import 'package:intl/intl.dart' as intl;
 import 'package:url_launcher/url_launcher.dart';
 import '../../domain/entities/comprehensive_report_data.dart';
 import '../../../../core/theme/color_palette.dart';
+import '../../../../core/services/whatsapp_api_service.dart';
+import '../../../settings/presentation/cubit/settings_cubit.dart';
+import '../../../settings/presentation/cubit/settings_state.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class OverdueMembersWidget extends StatelessWidget {
   final List<OverdueMemberItem> overdueMembers;
@@ -19,12 +23,48 @@ class OverdueMembersWidget extends StatelessWidget {
     }
   }
 
-  Future<void> _sendWhatsapp(String phone, String name, double amount) async {
+  Future<void> _sendWhatsapp(BuildContext context, String phone, String name, double amount) async {
     // تنسيق رسالة تذكير باللغة العربية
     final text = 'السلام عليكم يا أستاذ $name، تذكير لطيف من Sparta Gym بأن هناك مبلغ متبقي من اشتراكك وقدره $amount ج.م. نسعد بتواجدك معنا دائماً.';
-    final whatsappUrl = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(text)}');
-    if (await canLaunchUrl(whatsappUrl)) {
-      await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+    
+    final settingsState = context.read<SettingsCubit>().state;
+    String accessToken = '';
+    String phoneNumberId = '';
+    if (settingsState is SettingsLoaded) {
+      accessToken = settingsState.settings.whatsappAccessToken;
+      phoneNumberId = settingsState.settings.whatsappPhoneNumberId;
+    }
+
+    if (accessToken.isNotEmpty && phoneNumberId.isNotEmpty) {
+      final errorMsg = await WhatsappApiService().sendMessage(
+        phoneNumber: phone,
+        message: text,
+        accessToken: accessToken,
+        phoneNumberId: phoneNumberId,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              errorMsg ?? 'تم إرسال تذكير واتساب بنجاح',
+              style: const TextStyle(fontFamily: 'Cairo'),
+            ),
+            backgroundColor: errorMsg == null ? Colors.green : Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } else {
+      final whatsappUrl = Uri.parse('https://wa.me/${phone.replaceAll('+', '')}?text=${Uri.encodeComponent(text)}');
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('لا يمكن فتح تطبيق واتساب', style: TextStyle(fontFamily: 'Cairo'))),
+          );
+        }
+      }
     }
   }
 
@@ -206,6 +246,7 @@ class OverdueMembersWidget extends StatelessWidget {
                                   IconButton(
                                     icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.teal, size: 18),
                                     onPressed: () => _sendWhatsapp(
+                                      context,
                                       member.phoneNumber,
                                       member.fullName,
                                       member.remainingAmount,

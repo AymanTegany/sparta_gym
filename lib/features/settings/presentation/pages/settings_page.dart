@@ -30,6 +30,8 @@ class _SettingsPageState extends State<SettingsPage> {
   late final TextEditingController _phoneCtrl;
   late final TextEditingController _addressCtrl;
   late final TextEditingController _registerCtrl;
+  late final TextEditingController _whatsappAccessTokenCtrl;
+  late final TextEditingController _whatsappPhoneNumberIdCtrl;
   String _dbPath = 'جاري التحميل...';
   String? _selectedLogoPath;
   List<Printer> _availablePrinters = [];
@@ -47,6 +49,8 @@ class _SettingsPageState extends State<SettingsPage> {
     _phoneCtrl = TextEditingController();
     _addressCtrl = TextEditingController();
     _registerCtrl = TextEditingController();
+    _whatsappAccessTokenCtrl = TextEditingController();
+    _whatsappPhoneNumberIdCtrl = TextEditingController();
 
     // تحميل الإعدادات ومسار قاعدة البيانات
     context.read<SettingsCubit>().loadSettings();
@@ -123,6 +127,8 @@ class _SettingsPageState extends State<SettingsPage> {
     _phoneCtrl.dispose();
     _addressCtrl.dispose();
     _registerCtrl.dispose();
+    _whatsappAccessTokenCtrl.dispose();
+    _whatsappPhoneNumberIdCtrl.dispose();
     super.dispose();
   }
 
@@ -136,6 +142,8 @@ class _SettingsPageState extends State<SettingsPage> {
       register: _registerCtrl.text.trim(),
       logoPath: _selectedLogoPath,
       defaultA4Printer: _selectedPrinter,
+      whatsappAccessToken: _whatsappAccessTokenCtrl.text.trim(),
+      whatsappPhoneNumberId: _whatsappPhoneNumberIdCtrl.text.trim(),
     );
   }
 
@@ -174,6 +182,8 @@ class _SettingsPageState extends State<SettingsPage> {
             _phoneCtrl.text = state.settings.gymPhone;
             _addressCtrl.text = state.settings.gymAddress;
             _registerCtrl.text = state.settings.commercialRegister;
+            _whatsappAccessTokenCtrl.text = state.settings.whatsappAccessToken;
+            _whatsappPhoneNumberIdCtrl.text = state.settings.whatsappPhoneNumberId;
             if (_selectedLogoPath == null &&
                 state.settings.logoPath.isNotEmpty) {
               _selectedLogoPath = state.settings.logoPath;
@@ -500,6 +510,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                         register: _registerCtrl.text.trim(),
                                         logoPath: _selectedLogoPath,
                                         defaultA4Printer: value,
+                                        whatsappAccessToken: _whatsappAccessTokenCtrl.text.trim(),
+                                        whatsappPhoneNumberId: _whatsappPhoneNumberIdCtrl.text.trim(),
                                       );
                                     },
                                   ),
@@ -589,6 +601,76 @@ class _SettingsPageState extends State<SettingsPage> {
                                         : Colors.black,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // كارت إعدادات ربط واتساب API
+                        _buildSectionHeader(
+                          'ربط واتساب (WhatsApp API)',
+                          Icons.chat_bubble_outline,
+                        ),
+                        const SizedBox(height: 16),
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.info_outline,
+                                      color: ColorPalette.infoColor,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'أدخل بيانات WhatsApp Cloud API لإرسال الرسائل التلقائية للعملاء. إذا تركتها فارغة سيتم تحويلك إلى تطبيق واتساب للإرسال اليدوي.',
+                                        style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  controller: _whatsappAccessTokenCtrl,
+                                  label: 'Access Token',
+                                  icon: Icons.key,
+                                ),
+                                const SizedBox(height: 16),
+                                _buildTextField(
+                                  controller: _whatsappPhoneNumberIdCtrl,
+                                  label: 'Phone Number ID',
+                                  icon: Icons.phone_android,
+                                  keyboardType: TextInputType.number,
+                                ),
+                                const SizedBox(height: 24),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 48,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _save(state),
+                                    icon: const Icon(
+                                      Icons.save,
+                                      color: Colors.white,
+                                    ),
+                                    label: const Text('حفظ إعدادات واتساب'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: ColorPalette.primaryColor,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
                                     ),
                                   ),
                                 ),
