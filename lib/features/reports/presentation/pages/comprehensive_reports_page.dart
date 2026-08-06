@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart' as intl;
 import '../../../../core/common/widgets/sidebar_layout.dart';
 import '../../../../core/theme/color_palette.dart';
@@ -18,25 +19,101 @@ class ComprehensiveReportsPage extends StatefulWidget {
 }
 
 class _ComprehensiveReportsPageState extends State<ComprehensiveReportsPage> {
-  ReportPeriod _period = ReportPeriod.week;
+  // الفترة الافتراضية: Business Date
+  ReportPeriod _period = ReportPeriod.businessDate;
   late DateTime _startDate;
   late DateTime _endDate;
   DateTimeRange? _customRange;
+
+  // تاريخ Business Date المحدد
+  late DateTime _businessDate;
+  
+  // أوقات بداية ونهاية يوم العمل (قابلة للتعديل)
+  TimeOfDay _businessStartTime = const TimeOfDay(hour: 6, minute: 0);
+  TimeOfDay _businessEndTime = const TimeOfDay(hour: 3, minute: 0);
 
   @override
   void initState() {
     super.initState();
     _setInitialDates();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadData();
-    });
+    _loadBusinessTimes();
   }
 
   void _setInitialDates() {
     final now = DateTime.now();
-    // افتراضياً: آخر 7 أيام شاملة اليوم
-    _startDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
-    _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    
+    // مبدئياً نفترض أن يوم العمل يبدأ 6 صباحاً (حتى يتم تحميل الوقت المحفوظ)
+    if (now.hour < 6) {
+      _businessDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 1));
+    } else {
+      _businessDate = DateTime(now.year, now.month, now.day);
+    }
+    
+    _updateDatesFromShift();
+  }
+
+  Future<void> _loadBusinessTimes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final startHour = prefs.getInt('business_start_hour') ?? 6;
+    final startMinute = prefs.getInt('business_start_minute') ?? 0;
+    final endHour = prefs.getInt('business_end_hour') ?? 3;
+    final endMinute = prefs.getInt('business_end_minute') ?? 0;
+
+    setState(() {
+      _businessStartTime = TimeOfDay(hour: startHour, minute: startMinute);
+      _businessEndTime = TimeOfDay(hour: endHour, minute: endMinute);
+      
+      // إعادة حساب تاريخ الـ businessDate إذا لزم الأمر بناءً على وقت البداية المحفوظ
+      final now = DateTime.now();
+      final nowMinutes = now.hour * 60 + now.minute;
+      final startMinutes = _businessStartTime.hour * 60 + _businessStartTime.minute;
+      
+      if (nowMinutes < startMinutes) {
+        _businessDate = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 1));
+      } else {
+        _businessDate = DateTime(now.year, now.month, now.day);
+      }
+      
+      _updateDatesFromShift();
+    });
+
+    // يتم تحميل البيانات بعد أن نكون قد حسبنا التواريخ والأوقات بشكل صحيح
+    _loadData();
+  }
+
+  Future<void> _saveBusinessTimes() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('business_start_hour', _businessStartTime.hour);
+    await prefs.setInt('business_start_minute', _businessStartTime.minute);
+    await prefs.setInt('business_end_hour', _businessEndTime.hour);
+    await prefs.setInt('business_end_minute', _businessEndTime.minute);
+  }
+
+  /// يحسب startDate و endDate من الـ Business Date والأوقات المحفوظة
+  void _updateDatesFromShift() {
+    _startDate = DateTime(
+      _businessDate.year,
+      _businessDate.month,
+      _businessDate.day,
+      _businessStartTime.hour,
+      _businessStartTime.minute,
+    );
+    
+    // إذا كان وقت النهاية أقل من وقت البداية (مثلاً 3 الفجر)، فهو في اليوم التالي
+    final endMinutes = _businessEndTime.hour * 60 + _businessEndTime.minute;
+    final startMinutes = _businessStartTime.hour * 60 + _businessStartTime.minute;
+    final nextDay = endMinutes <= startMinutes;
+    
+    final targetDate = nextDay ? _businessDate.add(const Duration(days: 1)) : _businessDate;
+    
+    _endDate = DateTime(
+      targetDate.year,
+      targetDate.month,
+      targetDate.day,
+      _businessEndTime.hour,
+      _businessEndTime.minute,
+      59,
+    );
   }
 
   void _loadData() {
@@ -48,6 +125,15 @@ class _ComprehensiveReportsPageState extends State<ComprehensiveReportsPage> {
       setState(() {
         _period = period;
       });
+      return;
+    }
+
+    if (period == ReportPeriod.businessDate) {
+      setState(() {
+        _period = period;
+        _updateDatesFromShift();
+      });
+      _loadData();
       return;
     }
 
@@ -69,6 +155,7 @@ class _ComprehensiveReportsPageState extends State<ComprehensiveReportsPage> {
         start = DateTime(now.year, 1, 1, 0, 0, 0);
         break;
       case ReportPeriod.custom:
+      case ReportPeriod.businessDate:
         return;
     }
 
@@ -88,6 +175,33 @@ class _ComprehensiveReportsPageState extends State<ComprehensiveReportsPage> {
       _endDate = DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59);
     });
 
+    _loadData();
+  }
+
+  void _onBusinessDateChanged(DateTime date) {
+    setState(() {
+      _businessDate = date;
+      _updateDatesFromShift();
+    });
+
+    _loadData();
+  }
+
+  void _onBusinessStartTimeChanged(TimeOfDay time) {
+    setState(() {
+      _businessStartTime = time;
+      _updateDatesFromShift();
+    });
+    _saveBusinessTimes();
+    _loadData();
+  }
+
+  void _onBusinessEndTimeChanged(TimeOfDay time) {
+    setState(() {
+      _businessEndTime = time;
+      _updateDatesFromShift();
+    });
+    _saveBusinessTimes();
     _loadData();
   }
 
@@ -235,6 +349,12 @@ class _ComprehensiveReportsPageState extends State<ComprehensiveReportsPage> {
                 onPeriodSelected: _onPeriodChanged,
                 customRange: _customRange,
                 onCustomRangeSelected: _onCustomRangeChanged,
+                businessDate: _businessDate,
+                onBusinessDateChanged: _onBusinessDateChanged,
+                businessStartTime: _businessStartTime,
+                businessEndTime: _businessEndTime,
+                onBusinessStartTimeChanged: _onBusinessStartTimeChanged,
+                onBusinessEndTimeChanged: _onBusinessEndTimeChanged,
               ),
               const SizedBox(height: 24),
 
