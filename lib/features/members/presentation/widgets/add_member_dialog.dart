@@ -122,7 +122,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
 
     // توليد معرّف تلقائي للعميل الجديد
     _memberIdCtrl = TextEditingController(
-      text: m?.memberId ?? 'MEM-${DateTime.now().millisecondsSinceEpoch}',
+      text: m?.memberId ?? '',
     );
     _membershipType = m?.membershipType ?? 'شهري';
     _priceCtrl = TextEditingController(
@@ -132,7 +132,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       text: m != null ? m.discount.toStringAsFixed(0) : '0',
     );
     _paidCtrl = TextEditingController(
-      text: m != null ? m.paidAmount.toStringAsFixed(0) : '0',
+      text: m != null ? m.paidAmount.toStringAsFixed(0) : '',
     );
     _trainerCtrl = TextEditingController(text: m?.trainerName ?? '');
     _startDate = m != null ? DateTime.tryParse(m.startDate) : DateTime.now();
@@ -335,6 +335,13 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       if (mounted) {
         _priceCtrl.text = total.toStringAsFixed(0);
         _applyDiscountCode();
+        // للعميل الجديد: المبلغ المدفوع يبدأ بالقيمة المستحقة
+        if (!_isEditing) {
+          final price = double.tryParse(_priceCtrl.text) ?? 0;
+          final discount = double.tryParse(_discountCtrl.text) ?? 0;
+          final due = price - discount;
+          _paidCtrl.text = (due > 0 ? due : 0).toStringAsFixed(0);
+        }
         _calculateRemaining();
       }
     });
@@ -430,6 +437,31 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
 
   /// حفظ بيانات العميل
   void _save({bool printInvoice = false, bool shareWhatsapp = false}) {
+    if (_fullNameCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline_rounded, color: Colors.white),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text('الاسم الكامل مطلوب ولا يمكن إضافة أو تعديل عضو بدون اسم'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      return;
+    }
+
+    // ملء رقم العضوية تلقائياً إذا تُرك فارغاً
+    if (_memberIdCtrl.text.trim().isEmpty) {
+      _memberIdCtrl.text = 'MEM-${DateTime.now().millisecondsSinceEpoch}';
+    }
+
     if (!_formKey.currentState!.validate()) return;
 
     final now = DateTime.now();
@@ -694,23 +726,28 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
               Expanded(
                 child: _buildTextField(
                   controller: _memberIdCtrl,
-                  label: 'رقم العضوية (الباركود) *',
+                  label: _isEditing ? 'رقم العضوية (الباركود) *' : 'رقم العضوية (الباركود)',
                   icon: Icons.confirmation_number_outlined,
+                  hintText: _isEditing ? null : 'اتركه فارغاً للتوليد التلقائي',
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
+                    // في حالة التعديل: الحقل مطلوب
+                    if (_isEditing && (v == null || v.trim().isEmpty)) {
                       return 'رقم العضوية مطلوب';
                     }
-                    final state = context.read<MembersCubit>().state;
-                    if (state is MembersLoaded) {
-                      final exists = state.allMembers.any((m) {
-                        if (_isEditing && m.id == widget.member?.id) {
-                          return false;
+                    // التحقق من عدم التكرار إذا كان هناك قيمة
+                    if (v != null && v.trim().isNotEmpty) {
+                      final state = context.read<MembersCubit>().state;
+                      if (state is MembersLoaded) {
+                        final exists = state.allMembers.any((m) {
+                          if (_isEditing && m.id == widget.member?.id) {
+                            return false;
+                          }
+                          return m.memberId.trim().toLowerCase() ==
+                              v.trim().toLowerCase();
+                        });
+                        if (exists) {
+                          return 'هذا الباركود/رقم العضوية مسجل لعميل آخر بالفعل';
                         }
-                        return m.memberId.trim().toLowerCase() ==
-                            v.trim().toLowerCase();
-                      });
-                      if (exists) {
-                        return 'هذا الباركود/رقم العضوية مسجل لعميل آخر بالفعل';
                       }
                     }
                     return null;
@@ -1242,6 +1279,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
+    String? hintText,
   }) {
     return TextFormField(
       controller: controller,
@@ -1250,6 +1288,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
+        hintText: hintText,
         prefixIcon: Icon(icon, size: 20),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         focusedBorder: OutlineInputBorder(

@@ -80,7 +80,7 @@ class ExpiringSoonSection extends StatelessWidget {
                       ),
                     ],
                   ),
-                  ...members.map((m) {
+                  ...members.take(5).map((m) {
                     final days = m.remainingDays;
                     final textDays = days == 1 ? 'يوم واحد' : '$days أيام';
                     final color = days <= 3

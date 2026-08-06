@@ -196,10 +196,11 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
   Future<List<AttendanceModel>> getDailyAttendance(String dateStr) async {
     try {
       final db = await databaseHelper.database;
-      // استخدام نطاق زمني بدلاً من date() لتسريع الاستعلام مع الفهارس
-      final dayStart = '${dateStr}T00:00:00';
+      // استخدام نطاق زمني من 5 صباحاً إلى 5 صباحاً اليوم التالي
+      // بدلاً من منتصف الليل حتى لا يتم مسح السجلات قبل الساعة 5 صباحاً
+      final dayStart = '${dateStr}T05:00:00';
       final nextDay = DateTime.parse(dateStr).add(const Duration(days: 1));
-      final dayEnd = '${nextDay.toIso8601String().substring(0, 10)}T00:00:00';
+      final dayEnd = '${nextDay.toIso8601String().substring(0, 10)}T05:00:00';
 
       final results = await db.rawQuery('''
         SELECT a.*, m.fullName, m.phoneNumber 
@@ -220,12 +221,15 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
     try {
       final db = await databaseHelper.database;
       final now = DateTime.now();
-      final todayStart = '${now.toIso8601String().substring(0, 10)}T00:00:00';
-      final tomorrowStart = '${now.add(const Duration(days: 1)).toIso8601String().substring(0, 10)}T00:00:00';
+      // حساب تاريخ "يوم العمل" - إذا كانت الساعة قبل 5 صباحاً، نعتبره من اليوم السابق
+      final businessDate = now.hour < 5 ? now.subtract(const Duration(days: 1)) : now;
+      final todayStart = '${businessDate.toIso8601String().substring(0, 10)}T05:00:00';
+      final nextBusinessDay = businessDate.add(const Duration(days: 1));
+      final tomorrowStart = '${nextBusinessDay.toIso8601String().substring(0, 10)}T05:00:00';
       // أول يوم في الشهر الحالي
-      final monthStart = '${now.toIso8601String().substring(0, 7)}-01T00:00:00';
+      final monthStart = '${businessDate.toIso8601String().substring(0, 7)}-01T05:00:00';
 
-      // 1. عدد حضور اليوم (باستخدام نطاق زمني بدلاً من date())
+      // 1. عدد حضور اليوم (باستخدام نطاق زمني من 5 صباحاً إلى 5 صباحاً)
       final todayCountResult = await db.rawQuery('''
         SELECT COUNT(*) as count FROM attendance 
         WHERE checkInTime >= ? AND checkInTime < ?

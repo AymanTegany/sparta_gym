@@ -238,9 +238,16 @@ ${payment.notes != null ? '- ملاحظات: ${payment.notes}\n' : ''}
     final phoneNumberId = settings.whatsappPhoneNumberId;
 
     if (accessToken.isNotEmpty && phoneNumberId.isNotEmpty) {
-      final errorMsg = await WhatsappApiService().sendMessage(
+      final errorMsg = await WhatsappApiService().sendTemplateMessage(
         phoneNumber: cleanedPhone,
-        message: text,
+        templateName: 'payment_receipt',
+        parameters: [
+          payment.memberName ?? 'عميلنا العزيز',
+          payment.receiptId ?? '0',
+          formattedAmount,
+          payment.paymentMethod,
+          formattedDate,
+        ],
         accessToken: accessToken,
         phoneNumberId: phoneNumberId,
       );

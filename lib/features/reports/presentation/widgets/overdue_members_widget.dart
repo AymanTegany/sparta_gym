@@ -36,9 +36,10 @@ class OverdueMembersWidget extends StatelessWidget {
     }
 
     if (accessToken.isNotEmpty && phoneNumberId.isNotEmpty) {
-      final errorMsg = await WhatsappApiService().sendMessage(
+      final errorMsg = await WhatsappApiService().sendTemplateMessage(
         phoneNumber: phone,
-        message: text,
+        templateName: 'debt_alert',
+        parameters: [name, amount.toStringAsFixed(0)],
         accessToken: accessToken,
         phoneNumberId: phoneNumberId,
       );

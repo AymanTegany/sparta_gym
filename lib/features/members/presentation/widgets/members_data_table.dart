@@ -17,6 +17,7 @@ class MembersDataTable extends StatefulWidget {
   final Function(Member) onWhatsAppAlert;
   final Function(Member) onWelcomeMessage;
   final Function(Member) onRefundAndDelete;
+  final Function(Member) onEditMemberId;
 
   const MembersDataTable({
     super.key,
@@ -30,6 +31,7 @@ class MembersDataTable extends StatefulWidget {
     required this.onWhatsAppAlert,
     required this.onWelcomeMessage,
     required this.onRefundAndDelete,
+    required this.onEditMemberId,
   });
 
   @override
@@ -195,12 +197,10 @@ class _MembersDataTableState extends State<MembersDataTable> {
                     }),
                     cells: [
                       DataCell(
-                        Text(
-                          member.memberId,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: theme.colorScheme.primary,
-                          ),
+                        _MemberIdCell(
+                          memberId: member.memberId,
+                          theme: theme,
+                          onEditTap: () => widget.onEditMemberId(member),
                         ),
                         onTap: () => widget.onViewDetails(member),
                       ),
@@ -387,6 +387,9 @@ class _MembersDataTableState extends State<MembersDataTable> {
           case 'edit':
             widget.onEdit(member);
             break;
+          case 'edit_member_id':
+            widget.onEditMemberId(member);
+            break;
           case 'renew':
             widget.onRenew(member);
             break;
@@ -418,6 +421,12 @@ class _MembersDataTableState extends State<MembersDataTable> {
           isDark,
         ),
         _buildPopupItem('edit', Icons.edit_rounded, 'تعديل', isDark),
+        _buildPopupItem(
+          'edit_member_id',
+          Icons.tag_rounded,
+          'تعديل رقم العضوية',
+          isDark,
+        ),
         _buildPopupItem(
           'renew',
           Icons.autorenew_rounded,
@@ -484,8 +493,6 @@ class _MembersDataTableState extends State<MembersDataTable> {
     );
   }
 
-
-
   /// بناء حالة عدم وجود بيانات
   Widget _buildEmptyState(BuildContext context, bool isDark) {
     final theme = Theme.of(context);
@@ -543,5 +550,67 @@ class _MembersDataTableState extends State<MembersDataTable> {
     } catch (_) {
       return dateStr;
     }
+  }
+}
+
+/// ويدجت خلية رقم العضوية مع أيقونة تعديل عند المرور عليها
+class _MemberIdCell extends StatefulWidget {
+  final String memberId;
+  final ThemeData theme;
+  final VoidCallback onEditTap;
+
+  const _MemberIdCell({
+    required this.memberId,
+    required this.theme,
+    required this.onEditTap,
+  });
+
+  @override
+  State<_MemberIdCell> createState() => _MemberIdCellState();
+}
+
+class _MemberIdCellState extends State<_MemberIdCell> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            widget.memberId,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: widget.theme.colorScheme.primary,
+            ),
+          ),
+          AnimatedOpacity(
+            opacity: _isHovered ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 200),
+            child: Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: InkWell(
+                onTap: widget.onEditTap,
+                borderRadius: BorderRadius.circular(4),
+                child: Tooltip(
+                  message: 'تعديل رقم العضوية',
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Icon(
+                      Icons.edit_rounded,
+                      size: 14,
+                      color: widget.theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

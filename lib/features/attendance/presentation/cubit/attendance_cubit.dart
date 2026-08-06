@@ -222,7 +222,10 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     }
 
     try {
-      final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      // حساب تاريخ "يوم العمل" - إذا كانت الساعة قبل 5 صباحاً، نعتبره من اليوم السابق
+      final now = DateTime.now();
+      final businessDate = now.hour < 5 ? now.subtract(const Duration(days: 1)) : now;
+      final dateStr = DateFormat('yyyy-MM-dd').format(businessDate);
 
       // تسجيل الخروج التلقائي بعد 6 ساعات
       await _autoCheckoutOutdated(6);
