@@ -3,7 +3,7 @@ import '../../../../core/theme/color_palette.dart';
 import '../cubit/members_state.dart';
 
 /// شريط فلترة العملاء.
-/// يعرض أزرار الفلترة: الكل | النشطين | المنتهية | قريبة الانتهاء | المديونين
+/// يعرض أزرار الفلترة: الكل | مشتركين هذا الشهر فقط | النشطين | المنتهية | قريبة الانتهاء | المديونين | تمرينة واحدة
 class MembersFilterBar extends StatelessWidget {
   final MemberFilterType currentFilter;
   final ValueChanged<MemberFilterType> onFilterChanged;
@@ -30,6 +30,15 @@ class MembersFilterBar extends StatelessWidget {
             label: 'الكل',
             filterType: MemberFilterType.all,
             icon: Icons.people_outline_rounded,
+            isDark: isDark,
+          ),
+          const SizedBox(width: 8),
+          _buildFilterChip(
+            context,
+            label: 'مشتركين هذا الشهر فقط',
+            filterType: MemberFilterType.thisMonth,
+            icon: Icons.calendar_month_rounded,
+            activeColor: ColorPalette.infoColor,
             isDark: isDark,
           ),
           const SizedBox(width: 8),

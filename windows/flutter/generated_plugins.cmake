@@ -8,6 +8,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   rive_native
   screen_retriever_windows
   url_launcher_windows
+  webview_windows
   window_manager
 )
 

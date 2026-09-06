@@ -91,6 +91,22 @@ class Member extends Equatable {
   /// المبلغ الصافي بعد الخصم
   double get netPrice => membershipPrice - discount;
 
+  /// هل اشترك العميل خلال الشهر الحالي (تاريخ بداية الاشتراك أو تاريخ التسجيل في الشهر والسنة الحالية)
+  bool get isThisMonth {
+    final now = DateTime.now();
+    final cleanStart = startDate.replaceAll('/', '-');
+    final start = DateTime.tryParse(cleanStart);
+    if (start != null && start.year == now.year && start.month == now.month) {
+      return true;
+    }
+    final cleanCreated = createdAt.replaceAll('/', '-');
+    final created = DateTime.tryParse(cleanCreated);
+    if (created != null && created.year == now.year && created.month == now.month) {
+      return true;
+    }
+    return false;
+  }
+
   Member copyWith({
     int? id,
     String? memberId,

@@ -24,6 +24,7 @@ import '../../../features/shifts/presentation/cubit/shifts_state.dart';
 import '../../../features/shifts/presentation/pages/manage_employees_page.dart';
 import '../../../features/shifts/presentation/widgets/end_shift_dialog.dart';
 import '../../../features/shifts/presentation/widgets/shift_management_dialog.dart';
+import '../../../features/whatsapp_tool/presentation/pages/whatsapp_tool_page.dart';
 import '../../../init_dependencies.dart';
 import 'global_scanner_listener.dart';
 
@@ -135,6 +136,9 @@ class _SidebarLayoutState extends State<SidebarLayout> {
         break;
       case 'employees':
         targetPage = const ManageEmployeesPage();
+        break;
+      case 'whatsapp_tool':
+        targetPage = const WhatsappToolPage();
         break;
       default:
         return;
@@ -475,6 +479,13 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                 ),
                 _buildNavItem(
                   context: context,
+                  icon: Icons.chat_rounded,
+                  title: 'أداة إرسال واتساب',
+                  page: 'whatsapp_tool',
+                  theme: theme,
+                ),
+                _buildNavItem(
+                  context: context,
                   icon: Icons.settings_rounded,
                   title: 'إعدادات النظام',
                   page: 'settings',
@@ -782,6 +793,12 @@ class _SidebarLayoutState extends State<SidebarLayout> {
                             title: const Text('التقارير الشاملة'),
                             selected: widget.activePage == 'comprehensive_reports',
                             onTap: () => _navigateTo(context, 'comprehensive_reports'),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.chat_rounded),
+                            title: const Text('أداة إرسال واتساب'),
+                            selected: widget.activePage == 'whatsapp_tool',
+                            onTap: () => _navigateTo(context, 'whatsapp_tool'),
                           ),
                           ListTile(
                             leading: const Icon(Icons.settings_rounded),

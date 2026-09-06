@@ -125,6 +125,8 @@ class MembersCubit extends Cubit<MembersState> {
     switch (filterType) {
       case MemberFilterType.all:
         return members;
+      case MemberFilterType.thisMonth:
+        return members.where((m) => m.isThisMonth).toList();
       case MemberFilterType.active:
         return members.where((m) => m.isActive).toList();
       case MemberFilterType.expired:
@@ -284,13 +286,8 @@ class MembersCubit extends Cubit<MembersState> {
     final expiredMembers = members.where((m) => !m.isActive && m.membershipType != 'تمرينة واحدة').length;
 
     // حساب الإيرادات الشهرية (مجموع المدفوعات للأعضاء الذين بدأوا هذا الشهر)
-    final now = DateTime.now();
-    final monthStart = DateTime(now.year, now.month, 1);
     final monthlyRevenue = members
-        .where((m) {
-          final start = DateTime.tryParse(m.startDate);
-          return start != null && start.isAfter(monthStart);
-        })
+        .where((m) => m.isThisMonth)
         .fold<double>(0, (sum, m) => sum + m.paidAmount);
 
     return MembersStats(

@@ -4,6 +4,7 @@ import '../../domain/entities/member_entity.dart';
 /// أنواع الفلترة
 enum MemberFilterType {
   all,
+  thisMonth,
   active,
   expired,
   expiringSoon,

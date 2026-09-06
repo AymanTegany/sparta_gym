@@ -26,6 +26,7 @@ import 'features/reports/presentation/cubit/reports_cubit.dart';
 import 'features/discount_codes/presentation/cubit/discount_codes_cubit.dart';
 import 'features/shifts/presentation/cubit/shifts_cubit.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'core/services/whatsapp_bot_service.dart';
 import 'init_dependencies.dart';
 import 'package:updat/updat_window_manager.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -45,6 +46,9 @@ void main() async {
 
   // تهيئة حقن التبعيات
   await initDependencies();
+
+  // بدء تهيئة خدمة الواتساب المركزية في الخلفية (الاتصال التلقائي)
+  serviceLocator<WhatsappBotService>().init();
 
   // تهيئة بيانات التاريخ والوقت
   await initializeDateFormatting('ar', null);

@@ -135,6 +135,9 @@ import 'features/additional_services/domain/repositories/additional_services_rep
 import 'features/additional_services/domain/usecases/additional_services_usecases.dart';
 import 'features/additional_services/presentation/cubit/additional_services_cubit.dart';
 
+// WhatsApp Bot Service Import
+import 'core/services/whatsapp_bot_service.dart';
+
 final serviceLocator = GetIt.instance;
 
 /// تهيئة وحقن جميع التبعيات الخاصة بالتطبيق (Dependency Injection).
@@ -147,6 +150,11 @@ Future<void> initDependencies() async {
   
   // Database Helper (قاعدة البيانات المحلية)
   serviceLocator.registerLazySingleton(() => DatabaseHelper());
+
+  // خدمة الواتساب المركزية في الخلفية
+  serviceLocator.registerLazySingleton<WhatsappBotService>(
+    () => WhatsappBotService(sharedPreferences: serviceLocator()),
+  );
 
   // 2. Network Core
   serviceLocator.registerLazySingleton<DioClient>(

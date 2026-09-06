@@ -27,6 +27,7 @@ import '../../../expenses/presentation/cubit/expenses_cubit.dart';
 import '../../../expenses/domain/entities/expense_entity.dart';
 import '../../../shifts/presentation/cubit/shifts_cubit.dart';
 import '../../../../core/services/whatsapp_api_service.dart';
+import '../../../../core/services/whatsapp_bot_service.dart';
 import '../../../settings/presentation/cubit/settings_cubit.dart';
 import '../../../settings/presentation/cubit/settings_state.dart';
 
@@ -575,93 +576,26 @@ class _MembersPageState extends State<MembersPage> {
                 Navigator.pop(dialogContext);
                 final finalMessage = messageController.text;
 
-                final settingsState = context.read<SettingsCubit>().state;
-                String accessToken = '';
-                String phoneNumberId = '';
-                if (settingsState is SettingsLoaded) {
-                  accessToken = settingsState.settings.whatsappAccessToken;
-                  phoneNumberId = settingsState.settings.whatsappPhoneNumberId;
-                }
-
-                if (accessToken.isNotEmpty && phoneNumberId.isNotEmpty) {
-                  String? errorMsg;
-                  if (!member.isActive) {
-                    errorMsg = await WhatsappApiService().sendTemplateMessage(
-                      phoneNumber: phone,
-                      templateName: 'subscription_expired',
-                      parameters: [
-                        member.fullName,
-                        member.membershipType,
-                        _formatDate(member.endDate),
-                      ],
-                      accessToken: accessToken,
-                      phoneNumberId: phoneNumberId,
-                      languageCode: 'ar_EG', // Uses Arabic (Egypt)
-                    );
-                  } else if (member.isExpiringSoon) {
-                    errorMsg = await WhatsappApiService().sendTemplateMessage(
-                      phoneNumber: phone,
-                      templateName: 'gym_management_system',
-                      parameters: [
-                        member.fullName,
-                        member.remainingDays.toString(),
-                      ],
-                      accessToken: accessToken,
-                      phoneNumberId: phoneNumberId,
-                    );
-                  } else if (member.hasDebt) {
-                    errorMsg = await WhatsappApiService().sendTemplateMessage(
-                      phoneNumber: phone,
-                      templateName: 'debt_alert',
-                      parameters: [
-                        member.fullName,
-                        member.remainingAmount.toStringAsFixed(0),
-                      ],
-                      accessToken: accessToken,
-                      phoneNumberId: phoneNumberId,
-                    );
-                  } else {
-                    errorMsg = await WhatsappApiService().sendTemplateMessage(
-                      phoneNumber: phone,
-                      templateName: 'active_subscription_info',
-                      parameters: [
-                        member.fullName,
-                        member.membershipType,
-                        _formatDate(member.endDate),
-                      ],
-                      accessToken: accessToken,
-                      phoneNumberId: phoneNumberId,
-                    );
-                  }
+                try {
+                  await WhatsappBotService().sendSingleMessage(phone, finalMessage);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          errorMsg ?? 'تم إرسال رسالة واتساب بنجاح',
-                          style: const TextStyle(fontFamily: 'Cairo'),
-                        ),
-                        backgroundColor: errorMsg == null
-                            ? Colors.green
-                            : Colors.red,
-                        duration: const Duration(seconds: 4),
+                      const SnackBar(
+                        content: Text('تم إرسال رسالة واتساب بنجاح', style: TextStyle(fontFamily: 'Cairo')),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 4),
                       ),
                     );
                   }
-                } else {
-                  final url = Uri.parse(
-                    'https://wa.me/${phone.replaceAll('+', '')}?text=${Uri.encodeComponent(finalMessage)}',
-                  );
-
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  } else {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('لا يمكن فتح تطبيق واتساب'),
-                        ),
-                      );
-                    }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('فشل الإرسال: $e', style: const TextStyle(fontFamily: 'Cairo')),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 4),
+                      ),
+                    );
                   }
                 }
               },
@@ -922,57 +856,26 @@ class _MembersPageState extends State<MembersPage> {
                 Navigator.pop(dialogContext);
                 final finalMessage = messageController.text;
 
-                final settingsState = context.read<SettingsCubit>().state;
-                String accessToken = '';
-                String phoneNumberId = '';
-                if (settingsState is SettingsLoaded) {
-                  accessToken = settingsState.settings.whatsappAccessToken;
-                  phoneNumberId = settingsState.settings.whatsappPhoneNumberId;
-                }
-
-                if (accessToken.isNotEmpty && phoneNumberId.isNotEmpty) {
-                  final errorMsg = await WhatsappApiService()
-                      .sendTemplateMessage(
-                        phoneNumber: phone,
-                        templateName: 'welcome_new_member',
-                        parameters: [
-                          member.fullName,
-                          member.membershipType,
-                          _formatDate(member.startDate),
-                          _formatDate(member.endDate),
-                        ],
-                        accessToken: accessToken,
-                        phoneNumberId: phoneNumberId,
-                      );
+                try {
+                  await WhatsappBotService().sendSingleMessage(phone, finalMessage);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          errorMsg ?? 'تم إرسال رسالة واتساب بنجاح',
-                          style: const TextStyle(fontFamily: 'Cairo'),
-                        ),
-                        backgroundColor: errorMsg == null
-                            ? Colors.green
-                            : Colors.red,
-                        duration: const Duration(seconds: 4),
+                      const SnackBar(
+                        content: Text('تم إرسال رسالة واتساب بنجاح', style: TextStyle(fontFamily: 'Cairo')),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 4),
                       ),
                     );
                   }
-                } else {
-                  final url = Uri.parse(
-                    'https://wa.me/${phone.replaceAll('+', '')}?text=${Uri.encodeComponent(finalMessage)}',
-                  );
-
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  } else {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('لا يمكن فتح تطبيق واتساب'),
-                        ),
-                      );
-                    }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('فشل الإرسال: $e', style: const TextStyle(fontFamily: 'Cairo')),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 4),
+                      ),
+                    );
                   }
                 }
               },
@@ -1006,6 +909,7 @@ class _MembersPageState extends State<MembersPage> {
   Map<MemberFilterType, int> _calculateFilterCounts(List<Member> members) {
     return {
       MemberFilterType.all: members.length,
+      MemberFilterType.thisMonth: members.where((m) => m.isThisMonth).length,
       MemberFilterType.active: members.where((m) => m.isActive).length,
       MemberFilterType.expired: members
           .where((m) => !m.isActive && m.membershipType != 'تمرينة واحدة')
