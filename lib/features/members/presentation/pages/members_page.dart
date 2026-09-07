@@ -30,6 +30,7 @@ import '../../../../core/services/whatsapp_api_service.dart';
 import '../../../../core/services/whatsapp_bot_service.dart';
 import '../../../settings/presentation/cubit/settings_cubit.dart';
 import '../../../settings/presentation/cubit/settings_state.dart';
+import '../../../../init_dependencies.dart';
 
 /// ──────────────────────────────────────────────────────────────────────────────
 /// شاشة إدارة العملاء (Members Management Page)
@@ -183,8 +184,9 @@ class _MembersPageState extends State<MembersPage> {
       builder: (dialogContext) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
               Icon(
@@ -205,7 +207,9 @@ class _MembersPageState extends State<MembersPage> {
                 Text(
                   'العميل: ${member.fullName}',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
                     fontSize: 13,
                   ),
                 ),
@@ -257,8 +261,7 @@ class _MembersPageState extends State<MembersPage> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text('تم تحديث رقم العضوية بنجاح'),
-                      backgroundColor:
-                          Theme.of(context).colorScheme.primary,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -577,11 +580,17 @@ class _MembersPageState extends State<MembersPage> {
                 final finalMessage = messageController.text;
 
                 try {
-                  await WhatsappBotService().sendSingleMessage(phone, finalMessage);
+                  await serviceLocator<WhatsappBotService>().sendSingleMessage(
+                    phone,
+                    finalMessage,
+                  );
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('تم إرسال رسالة واتساب بنجاح', style: TextStyle(fontFamily: 'Cairo')),
+                        content: Text(
+                          'تم إرسال رسالة واتساب بنجاح',
+                          style: TextStyle(fontFamily: 'Cairo'),
+                        ),
                         backgroundColor: Colors.green,
                         duration: Duration(seconds: 4),
                       ),
@@ -591,7 +600,10 @@ class _MembersPageState extends State<MembersPage> {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('فشل الإرسال: $e', style: const TextStyle(fontFamily: 'Cairo')),
+                        content: Text(
+                          'فشل الإرسال: $e',
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
                         backgroundColor: Colors.red,
                         duration: const Duration(seconds: 4),
                       ),
@@ -857,11 +869,17 @@ class _MembersPageState extends State<MembersPage> {
                 final finalMessage = messageController.text;
 
                 try {
-                  await WhatsappBotService().sendSingleMessage(phone, finalMessage);
+                  await serviceLocator<WhatsappBotService>().sendSingleMessage(
+                    phone,
+                    finalMessage,
+                  );
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('تم إرسال رسالة واتساب بنجاح', style: TextStyle(fontFamily: 'Cairo')),
+                        content: Text(
+                          'تم إرسال رسالة واتساب بنجاح',
+                          style: TextStyle(fontFamily: 'Cairo'),
+                        ),
                         backgroundColor: Colors.green,
                         duration: Duration(seconds: 4),
                       ),
@@ -871,7 +889,10 @@ class _MembersPageState extends State<MembersPage> {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('فشل الإرسال: $e', style: const TextStyle(fontFamily: 'Cairo')),
+                        content: Text(
+                          'فشل الإرسال: $e',
+                          style: const TextStyle(fontFamily: 'Cairo'),
+                        ),
                         backgroundColor: Colors.red,
                         duration: const Duration(seconds: 4),
                       ),
@@ -905,24 +926,7 @@ class _MembersPageState extends State<MembersPage> {
     }
   }
 
-  /// حساب عدد العناصر لكل نوع فلترة
-  Map<MemberFilterType, int> _calculateFilterCounts(List<Member> members) {
-    return {
-      MemberFilterType.all: members.length,
-      MemberFilterType.thisMonth: members.where((m) => m.isThisMonth).length,
-      MemberFilterType.active: members.where((m) => m.isActive).length,
-      MemberFilterType.expired: members
-          .where((m) => !m.isActive && m.membershipType != 'تمرينة واحدة')
-          .length,
-      MemberFilterType.expiringSoon: members
-          .where((m) => m.isExpiringSoon)
-          .length,
-      MemberFilterType.inDebt: members.where((m) => m.hasDebt).length,
-      MemberFilterType.singleSession: members
-          .where((m) => m.membershipType == 'تمرينة واحدة')
-          .length,
-    };
-  }
+  // تم نقل حساب filterCounts إلى الـ Cubit لتجنب إعادة الحساب في كل بناء للواجهة
 
   @override
   Widget build(BuildContext context) {
@@ -1043,7 +1047,7 @@ class _MembersPageState extends State<MembersPage> {
             );
           }
 
-          final counts = _calculateFilterCounts(loadedState.allMembers);
+          final counts = loadedState.filterCounts;
 
           return Directionality(
             textDirection: TextDirection.rtl,

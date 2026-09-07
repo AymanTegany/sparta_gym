@@ -37,18 +37,33 @@ class MembersCubit extends Cubit<MembersState> {
 
   /// تحميل جميع العملاء من قاعدة البيانات
   Future<void> loadMembers() async {
-    emit(const MembersLoading());
+    // عند التحديث مع وجود بيانات محملة مسبقاً، لا نعرض شاشة التحميل (تحديث صامت)
+    final currentState = state;
+    if (currentState is! MembersLoaded) {
+      emit(const MembersLoading());
+    }
 
     final result = await _getAllMembers(NoParams());
 
     result.fold(
       (failure) => emit(MembersError(failure.message)),
       (members) {
-        final stats = _calculateStats(members);
+        final (:stats, :filterCounts) = _calculateStatsAndCounts(members);
+        // الحفاظ على الفلتر والبحث الحاليين عند التحديث
+        final filterType = currentState is MembersLoaded
+            ? currentState.filterType
+            : MemberFilterType.all;
+        final searchQuery = currentState is MembersLoaded
+            ? currentState.searchQuery
+            : '';
+        final displayedMembers = _applyFilter(members, filterType);
         emit(MembersLoaded(
           allMembers: members,
-          displayedMembers: members,
+          displayedMembers: displayedMembers,
           stats: stats,
+          filterType: filterType,
+          searchQuery: searchQuery,
+          filterCounts: filterCounts,
         ));
       },
     );
@@ -277,24 +292,52 @@ class MembersCubit extends Cubit<MembersState> {
     );
   }
 
-  // ──────────────── حساب الإحصائيات ────────────────
+  /// حساب إحصائيات العملاء وعدد كل فلتر في مرور واحد على البيانات
+  ({MembersStats stats, Map<MemberFilterType, int> filterCounts}) _calculateStatsAndCounts(List<Member> members) {
+    int activeCount = 0;
+    int expiredCount = 0;
+    int thisMonthCount = 0;
+    int expiringSoonCount = 0;
+    int inDebtCount = 0;
+    int singleSessionCount = 0;
+    double monthlyRevenue = 0;
 
-  /// حساب إحصائيات العملاء
-  MembersStats _calculateStats(List<Member> members) {
-    final totalMembers = members.length;
-    final activeMembers = members.where((m) => m.isActive).length;
-    final expiredMembers = members.where((m) => !m.isActive && m.membershipType != 'تمرينة واحدة').length;
+    for (final m in members) {
+      final active = m.isActive;
+      final isSingleSession = m.membershipType == 'تمرينة واحدة';
 
-    // حساب الإيرادات الشهرية (مجموع المدفوعات للأعضاء الذين بدأوا هذا الشهر)
-    final monthlyRevenue = members
-        .where((m) => m.isThisMonth)
-        .fold<double>(0, (sum, m) => sum + m.paidAmount);
+      if (active) {
+        activeCount++;
+        if (m.isExpiringSoon) expiringSoonCount++;
+      } else if (!isSingleSession) {
+        expiredCount++;
+      }
 
-    return MembersStats(
-      totalMembers: totalMembers,
-      activeMembers: activeMembers,
-      expiredMembers: expiredMembers,
-      monthlyRevenue: monthlyRevenue,
+      if (m.isThisMonth) {
+        thisMonthCount++;
+        monthlyRevenue += m.paidAmount;
+      }
+
+      if (m.hasDebt) inDebtCount++;
+      if (isSingleSession) singleSessionCount++;
+    }
+
+    return (
+      stats: MembersStats(
+        totalMembers: members.length,
+        activeMembers: activeCount,
+        expiredMembers: expiredCount,
+        monthlyRevenue: monthlyRevenue,
+      ),
+      filterCounts: {
+        MemberFilterType.all: members.length,
+        MemberFilterType.thisMonth: thisMonthCount,
+        MemberFilterType.active: activeCount,
+        MemberFilterType.expired: expiredCount,
+        MemberFilterType.expiringSoon: expiringSoonCount,
+        MemberFilterType.inDebt: inDebtCount,
+        MemberFilterType.singleSession: singleSessionCount,
+      },
     );
   }
 

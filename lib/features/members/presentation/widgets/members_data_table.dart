@@ -84,6 +84,24 @@ class _MembersDataTableState extends State<MembersDataTable> {
     });
   }
 
+  // ثوابت أعمدة الجدول
+  static const List<_ColumnDef> _columns = [
+    _ColumnDef('رقم العضوية', 120),
+    _ColumnDef('الاسم', 180),
+    _ColumnDef('رقم الهاتف', 130),
+    _ColumnDef('نوع الاشتراك', 140),
+    _ColumnDef('تاريخ البداية', 120),
+    _ColumnDef('تاريخ الانتهاء', 120),
+    _ColumnDef('الحالة', 120),
+    _ColumnDef('المدفوع', 100),
+    _ColumnDef('المتبقي', 100),
+    _ColumnDef('أيام متبقية', 100),
+    _ColumnDef('الإجراءات', 60),
+  ];
+
+  static double get _totalWidth =>
+      _columns.fold<double>(0, (sum, c) => sum + c.width) + 32; // +32 for margins
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -95,7 +113,6 @@ class _MembersDataTableState extends State<MembersDataTable> {
 
     return Column(
       children: [
-        // الجدول
         Expanded(
           child: Container(
             decoration: BoxDecoration(
@@ -110,204 +127,35 @@ class _MembersDataTableState extends State<MembersDataTable> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Scrollbar(
-                controller: _verticalScrollController,
+                controller: _scrollController,
                 thumbVisibility: true,
+                notificationPredicate: (notification) => notification.depth == 0,
                 child: SingleChildScrollView(
-                  controller: _verticalScrollController,
-                  scrollDirection: Axis.vertical,
-                  child: Scrollbar(
-                    controller: _scrollController,
-                    thumbVisibility: true,
-                    child: SingleChildScrollView(
-                      controller: _scrollController,
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                headingRowHeight: 48,
-                dataRowMinHeight: 52,
-                dataRowMaxHeight: 56,
-                columnSpacing: 20,
-                horizontalMargin: 16,
-                sortColumnIndex: _sortColumnIndex,
-                sortAscending: _sortAscending,
-                headingRowColor: WidgetStateProperty.all(
-                  isDark
-                      ? ColorPalette.tableHeaderDark
-                      : ColorPalette.tableHeaderLight,
-                ),
-                headingTextStyle: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-                columns: [
-                  DataColumn(
-                    label: const Text('رقم العضوية'),
-                    onSort: (i, asc) => _sort((m) => m.memberId, i, asc),
-                  ),
-                  DataColumn(
-                    label: const Text('الاسم'),
-                    onSort: (i, asc) => _sort((m) => m.fullName, i, asc),
-                  ),
-                  const DataColumn(label: Text('رقم الهاتف')),
-                  const DataColumn(label: Text('نوع الاشتراك')),
-                  DataColumn(
-                    label: const Text('تاريخ البداية'),
-                    onSort: (i, asc) => _sort((m) => m.startDate, i, asc),
-                  ),
-                  DataColumn(
-                    label: const Text('تاريخ الانتهاء'),
-                    onSort: (i, asc) => _sort((m) => m.endDate, i, asc),
-                  ),
-                  const DataColumn(label: Text('الحالة')),
-                  DataColumn(
-                    label: const Text('المدفوع'),
-                    numeric: true,
-                    onSort: (i, asc) => _sort((m) => m.paidAmount, i, asc),
-                  ),
-                  DataColumn(
-                    label: const Text('المتبقي'),
-                    numeric: true,
-                    onSort: (i, asc) => _sort((m) => m.remainingAmount, i, asc),
-                  ),
-                  DataColumn(
-                    label: const Text('أيام متبقية'),
-                    numeric: true,
-                    onSort: (i, asc) => _sort((m) => m.remainingDays, i, asc),
-                  ),
-                  const DataColumn(label: Text('الإجراءات')),
-                ],
-                rows: List.generate(_sortedMembers.length, (index) {
-                  final member = _sortedMembers[index];
-                  final isEvenRow = index.isEven;
-
-                  return DataRow(
-                    color: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.hovered)) {
-                        return theme.colorScheme.primary.withValues(
-                          alpha: 0.05,
-                        );
-                      }
-                      return isEvenRow
-                          ? (isDark
-                                ? ColorPalette.tableRowEvenDark
-                                : ColorPalette.tableRowEvenLight)
-                          : (isDark
-                                ? ColorPalette.tableRowOddDark
-                                : ColorPalette.tableRowOddLight);
-                    }),
-                    cells: [
-                      DataCell(
-                        _MemberIdCell(
-                          memberId: member.memberId,
-                          theme: theme,
-                          onEditTap: () => widget.onEditMemberId(member),
-                        ),
-                        onTap: () => widget.onViewDetails(member),
-                      ),
-                      DataCell(
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor: theme.colorScheme.primary
-                                  .withValues(alpha: 0.1),
-                              child: Text(
-                                member.fullName.isNotEmpty
-                                    ? member.fullName[0]
-                                    : '?',
-                                style: TextStyle(
-                                  color: theme.colorScheme.primary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                member.fullName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        onTap: () => widget.onViewDetails(member),
-                      ),
-                      DataCell(Text(member.phoneNumber ?? '-')),
-                      DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withValues(
-                              alpha: 0.08,
-                            ),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            member.membershipType,
-                            style: TextStyle(
-                              color: theme.colorScheme.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
+                  controller: _scrollController,
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: _totalWidth,
+                    child: Column(
+                      children: [
+                        // ── صف العناوين (ثابت) ──
+                        _buildHeaderRow(theme, isDark),
+                        // ── صفوف البيانات (كسول - يبني فقط المرئي) ──
+                        Expanded(
+                          child: Scrollbar(
+                            controller: _verticalScrollController,
+                            thumbVisibility: true,
+                            child: ListView.builder(
+                              controller: _verticalScrollController,
+                              itemCount: _sortedMembers.length,
+                              itemExtent: 54, // ارتفاع ثابت لكل صف لتسريع التمرير
+                              itemBuilder: (context, index) {
+                                return _buildDataRow(
+                                  context, _sortedMembers[index], index, theme, isDark);
+                              },
                             ),
                           ),
                         ),
-                      ),
-                      DataCell(Text(_formatDate(member.startDate))),
-                      DataCell(Text(_formatDate(member.endDate))),
-                      DataCell(_buildStatusBadge(member)),
-                      DataCell(
-                        Text(
-                          '${member.paidAmount.toStringAsFixed(0)} ج.م',
-                          style: TextStyle(
-                            color: isDark
-                                ? ColorPalette.textPrimaryDark
-                                : ColorPalette.textPrimaryLight,
-                          ),
-                        ),
-                      ),
-                      DataCell(
-                        Text(
-                          '${member.remainingAmount.toStringAsFixed(0)} ج.م',
-                          style: TextStyle(
-                            color: member.hasDebt
-                                ? ColorPalette.debtStatus
-                                : ColorPalette.activeStatus,
-                            fontWeight: member.hasDebt
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                      DataCell(
-                        Text(
-                          '${member.remainingDays} يوم',
-                          style: TextStyle(
-                            color: member.remainingDays == 0
-                                ? ColorPalette.expiredStatus
-                                : member.remainingDays <= 7
-                                ? ColorPalette.expiringSoonStatus
-                                : (isDark
-                                      ? ColorPalette.textPrimaryDark
-                                      : ColorPalette.textPrimaryLight),
-                            fontWeight: member.remainingDays <= 7
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                      DataCell(_buildActionsMenu(context, member, isDark)),
-                    ],
-                  );
-                }),
-                      ),
+                      ],
                     ),
                   ),
                 ),
@@ -316,6 +164,262 @@ class _MembersDataTableState extends State<MembersDataTable> {
           ),
         ),
       ],
+    );
+  }
+
+  /// بناء صف العناوين
+  Widget _buildHeaderRow(ThemeData theme, bool isDark) {
+    final sortIcons = List<Widget?>.filled(_columns.length, null);
+    if (_sortColumnIndex < _columns.length) {
+      sortIcons[_sortColumnIndex] = Icon(
+        _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+        size: 14,
+        color: Colors.white70,
+      );
+    }
+
+    // الأعمدة القابلة للفرز: 0 (رقم العضوية), 1 (الاسم), 4 (تاريخ البداية), 5 (الانتهاء), 7 (المدفوع), 8 (المتبقي), 9 (أيام متبقية)
+    final sortableColumns = {0, 1, 4, 5, 7, 8, 9};
+    final sortFunctions = <int, Comparable Function(Member)>{
+      0: (m) => m.memberId,
+      1: (m) => m.fullName,
+      4: (m) => m.startDate,
+      5: (m) => m.endDate,
+      7: (m) => m.paidAmount,
+      8: (m) => m.remainingAmount,
+      9: (m) => m.remainingDays,
+    };
+
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: isDark
+            ? ColorPalette.tableHeaderDark
+            : ColorPalette.tableHeaderLight,
+      ),
+      child: Row(
+        children: List.generate(_columns.length, (i) {
+          final col = _columns[i];
+          final isSortable = sortableColumns.contains(i);
+          return SizedBox(
+            width: col.width,
+            child: InkWell(
+              onTap: isSortable
+                  ? () {
+                      final ascending = _sortColumnIndex == i ? !_sortAscending : true;
+                      _sort(sortFunctions[i]!, i, ascending);
+                    }
+                  : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        col.label,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (sortIcons[i] != null) sortIcons[i]!,
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  /// بناء صف بيانات واحد (يُبنى فقط عند الظهور في الشاشة)
+  Widget _buildDataRow(
+    BuildContext context,
+    Member member,
+    int index,
+    ThemeData theme,
+    bool isDark,
+  ) {
+    final isEvenRow = index.isEven;
+    final bgColor = isEvenRow
+        ? (isDark ? ColorPalette.tableRowEvenDark : ColorPalette.tableRowEvenLight)
+        : (isDark ? ColorPalette.tableRowOddDark : ColorPalette.tableRowOddLight);
+
+    return Material(
+      color: bgColor,
+      child: InkWell(
+        hoverColor: theme.colorScheme.primary.withValues(alpha: 0.05),
+        onTap: () => widget.onViewDetails(member),
+        child: SizedBox(
+          height: 54,
+          child: Row(
+            children: [
+              // رقم العضوية
+              SizedBox(
+                width: _columns[0].width,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: _MemberIdCell(
+                    memberId: member.memberId,
+                    theme: theme,
+                    onEditTap: () => widget.onEditMemberId(member),
+                  ),
+                ),
+              ),
+              // الاسم
+              SizedBox(
+                width: _columns[1].width,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor:
+                            theme.colorScheme.primary.withValues(alpha: 0.1),
+                        child: Text(
+                          member.fullName.isNotEmpty ? member.fullName[0] : '?',
+                          style: TextStyle(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          member.fullName,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // رقم الهاتف
+              SizedBox(
+                width: _columns[2].width,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(member.phoneNumber ?? '-', overflow: TextOverflow.ellipsis),
+                ),
+              ),
+              // نوع الاشتراك
+              SizedBox(
+                width: _columns[3].width,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      member.membershipType,
+                      style: TextStyle(
+                        color: theme.colorScheme.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ),
+              // تاريخ البداية
+              SizedBox(
+                width: _columns[4].width,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(_formatDate(member.startDate)),
+                ),
+              ),
+              // تاريخ الانتهاء
+              SizedBox(
+                width: _columns[5].width,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(_formatDate(member.endDate)),
+                ),
+              ),
+              // الحالة
+              SizedBox(
+                width: _columns[6].width,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: _buildStatusBadge(member),
+                ),
+              ),
+              // المدفوع
+              SizedBox(
+                width: _columns[7].width,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    '${member.paidAmount.toStringAsFixed(0)} ج.م',
+                    style: TextStyle(
+                      color: isDark
+                          ? ColorPalette.textPrimaryDark
+                          : ColorPalette.textPrimaryLight,
+                    ),
+                  ),
+                ),
+              ),
+              // المتبقي
+              SizedBox(
+                width: _columns[8].width,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    '${member.remainingAmount.toStringAsFixed(0)} ج.م',
+                    style: TextStyle(
+                      color: member.hasDebt
+                          ? ColorPalette.debtStatus
+                          : ColorPalette.activeStatus,
+                      fontWeight: member.hasDebt ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ),
+              // أيام متبقية
+              SizedBox(
+                width: _columns[9].width,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    '${member.remainingDays} يوم',
+                    style: TextStyle(
+                      color: member.remainingDays == 0
+                          ? ColorPalette.expiredStatus
+                          : member.remainingDays <= 7
+                          ? ColorPalette.expiringSoonStatus
+                          : (isDark
+                                ? ColorPalette.textPrimaryDark
+                                : ColorPalette.textPrimaryLight),
+                      fontWeight: member.remainingDays <= 7
+                          ? FontWeight.w600
+                          : FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ),
+              // الإجراءات
+              SizedBox(
+                width: _columns[10].width,
+                child: _buildActionsMenu(context, member, isDark),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -613,4 +717,12 @@ class _MemberIdCellState extends State<_MemberIdCell> {
       ),
     );
   }
+}
+
+/// تعريف عمود في الجدول
+class _ColumnDef {
+  final String label;
+  final double width;
+
+  const _ColumnDef(this.label, this.width);
 }

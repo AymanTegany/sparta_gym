@@ -65,12 +65,16 @@ class MembersLoaded extends MembersState {
   /// نص البحث الحالي
   final String searchQuery;
 
+  /// عدد العناصر لكل نوع فلترة (محسوبة مسبقاً لتجنب إعادة الحساب في كل بناء للواجهة)
+  final Map<MemberFilterType, int> filterCounts;
+
   const MembersLoaded({
     required this.allMembers,
     required this.displayedMembers,
     this.filterType = MemberFilterType.all,
     this.stats = const MembersStats(),
     this.searchQuery = '',
+    this.filterCounts = const {},
   });
 
   MembersLoaded copyWith({
@@ -79,6 +83,7 @@ class MembersLoaded extends MembersState {
     MemberFilterType? filterType,
     MembersStats? stats,
     String? searchQuery,
+    Map<MemberFilterType, int>? filterCounts,
   }) {
     return MembersLoaded(
       allMembers: allMembers ?? this.allMembers,
@@ -86,11 +91,12 @@ class MembersLoaded extends MembersState {
       filterType: filterType ?? this.filterType,
       stats: stats ?? this.stats,
       searchQuery: searchQuery ?? this.searchQuery,
+      filterCounts: filterCounts ?? this.filterCounts,
     );
   }
 
   @override
-  List<Object?> get props => [allMembers, displayedMembers, filterType, stats, searchQuery];
+  List<Object?> get props => [allMembers, displayedMembers, filterType, stats, searchQuery, filterCounts];
 }
 
 /// حالة الخطأ

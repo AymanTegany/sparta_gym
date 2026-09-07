@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/common/widgets/sidebar_layout.dart';
 import '../../../../core/services/whatsapp_bot_service.dart';
 import '../../../../init_dependencies.dart';
+import '../../../attendance/domain/usecases/get_member_attendance.dart';
 import '../../../members/domain/entities/member_entity.dart';
 import '../../../members/presentation/cubit/members_cubit.dart';
 import '../../../members/presentation/cubit/members_state.dart';
@@ -212,6 +213,13 @@ class _WhatsappToolPageState extends State<WhatsappToolPage> {
         return 'أهلاً كابتن ${member.fullName}،\n\n'
             'نود تذكيرك بوجود مبلغ متبقي على اشتراكك بقيمة ${member.remainingAmount.toStringAsFixed(0)} ج.م.\n'
             'يرجى تسوية المبلغ في أقرب وقت. شكراً لك! 🙏';
+      case 'statistics':
+        return 'أهلاً كابتن ${member.fullName}،\n\n'
+            'إليك إحصائيات حضورك:\n'
+            '- عدد أيام الحضور: (يتم الحساب عند الإرسال) يوم\n'
+            '- متوسط وقت التمرينة: (يتم الحساب عند الإرسال) ساعة\n'
+            '- إجمالي عدد الساعات: (يتم الحساب عند الإرسال) ساعة\n\n'
+            'استمر في التألق! 💪';
       case 'custom':
         return _customMsgCtrl.text
             .trim()
@@ -293,13 +301,64 @@ class _WhatsappToolPageState extends State<WhatsappToolPage> {
 
     if (confirmed != true) return;
 
-    final items = members.map((m) {
-      return {
+    final List<Map<String, String>> items = [];
+    
+    // إظهار نافذة تحميل أثناء جلب البيانات الإحصائية
+    if (_bulkTemplate == 'statistics') {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('جاري حساب الإحصائيات للأعضاء...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    for (var m in members) {
+      if (m.phoneNumber == null || m.phoneNumber!.isEmpty) continue;
+
+      String message = _buildMessageForMember(m);
+
+      if (_bulkTemplate == 'statistics') {
+        final usecase = serviceLocator<GetMemberAttendanceUseCase>();
+        final result = await usecase(m.memberId);
+        
+        int days = 0;
+        double hours = 0.0;
+        
+        result.fold((failure) {}, (list) {
+          days = list.length;
+          for (var att in list) {
+            hours += (att.durationMinutes ?? 0) / 60.0;
+          }
+        });
+
+        final avgHours = days > 0 ? (hours / days) : 0.0;
+
+        message = 'أهلاً كابتن ${m.fullName}،\n\n'
+            'إليك إحصائيات حضورك:\n'
+            '- عدد أيام الحضور: $days يوم\n'
+            '- متوسط وقت التمرينة: ${avgHours.toStringAsFixed(1)} ساعة\n'
+            '- إجمالي عدد الساعات: ${hours.toStringAsFixed(1)} ساعة\n\n'
+            'استمر في التألق! 💪';
+      }
+
+      items.add({
         'phone': m.phoneNumber!,
-        'message': _buildMessageForMember(m),
+        'message': message,
         'name': m.fullName,
-      };
-    }).toList();
+      });
+    }
+
+    if (_bulkTemplate == 'statistics' && context.mounted) {
+      Navigator.pop(context); // إغلاق نافذة التحميل
+    }
 
     _botService.sendBulkMessages(items);
   }
@@ -357,6 +416,8 @@ class _WhatsappToolPageState extends State<WhatsappToolPage> {
         return 'ميعاد التجديد';
       case 'welcome':
         return 'رسالة ترحيب';
+      case 'statistics':
+        return 'رسالة إحصائية';
       case 'custom':
         return 'رسالة مخصصة';
       default:
@@ -804,6 +865,7 @@ class _WhatsappToolPageState extends State<WhatsappToolPage> {
                   'expiring_soon',
                   'debt',
                   'active_reminder',
+                  'statistics',
                   'custom',
                 ].map((template) {
                   final isSelected = _bulkTemplate == template;

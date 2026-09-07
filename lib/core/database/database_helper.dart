@@ -398,6 +398,7 @@ class DatabaseHelper {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_members_fullName ON members(fullName)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_members_phoneNumber ON members(phoneNumber)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_members_endDate ON members(endDate)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_members_createdAt ON members(createdAt)');
 
     // فهارس الحضور
     await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_memberId ON attendance(memberId)');
